@@ -6,9 +6,9 @@
 
 // sample timing in seconds
 #ifdef DEBUG
-	#define SAMPLE_INTERVAL 30
+	#define SAMPLE_INTERVAL 60
 #else
-	#define SAMPLE_INTERVAL 120
+	#define SAMPLE_INTERVAL 300
 #endif
 
 #define WIFI_ATTEMPT_LIMIT	5 // max connection attempts to WiFi AP
@@ -17,6 +17,14 @@
 // #define SAMPLE_INTERVAL_ARM_MODIFIER 1000
 // microsecond modifier to seonds for sampling interval (ESP)
 #define SAMPLE_INTERVAL_ESP_MODIFIER 1000000
+
+// select time zone, used by NTPClient
+// const int timeZone = 0;  	// UTC
+const int timeZone = 1; // Ireland
+//const int timeZone = -5;  // USA EST
+//const int timeZone = -4;  // USA EDT
+//const int timeZone = -7;  // USA PDT
+//const int timeZone = -8;  // USA PST
 
 // Battery parameters
 // based on a settings curve in the LC709203F datasheet
@@ -30,8 +38,8 @@
 // #define BATTERY_APA 0x36 // 3000mAH
 
 // set client ID; used by mqtt and wifi
-//#define CLIENT_ID "AQ-test-room"
-#define CLIENT_ID "AQ-test-room-2"
+#define CLIENT_ID "AQ-test-room"
+// #define CLIENT_ID "AQ-test-room-2"
 // #define CLIENT_ID "AQ-lab-office"
 //#define CLIENT_ID "AQ-kitchen"
 //#define CLIENT_ID "AQ-cellar"

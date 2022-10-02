@@ -65,52 +65,62 @@ extern bool internetAvailable;
     }
   }
 
-  int mqttDeviceInfoUpdate(float cellPercent, float cellVoltage, int rssi)
+  int mqttDeviceBatteryUpdate(float cellPercent, float cellVoltage)
   {
-    Adafruit_MQTT_Publish batteryPercentPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC4, MQTT_QOS_1); // if problematic, remove QOS parameter
-    Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC5, MQTT_QOS_1);
-    Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC6, MQTT_QOS_1);
-    int result = 1;
-
-    mqttConnect();
-
-    if (cellPercent != 10000)
+    int result = 0;
+    if (batteryAvailable)
     {
+      Adafruit_MQTT_Publish batteryPercentPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC4, MQTT_QOS_1); // if problematic, remove QOS parameter
+      Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC5, MQTT_QOS_1);
+
+      mqttConnect();
+
+      // publish battery perecent
       if (batteryPercentPub.publish(cellPercent))
       {
         debugMessage("MQTT publish: Battery Percent succeeded");
+        result = 1;
       }
       else
       {
         debugMessage("MQTT publish: Battery Percent failed");
-        result = 0;
       }
-    }
 
-    if (cellVoltage != 10000)
-    {
+      // publish battery voltage
       if (batteryVoltagePub.publish(cellVoltage))
       {
         debugMessage("MQTT publish: Battery Voltage succeeded");
+        result = 1;
       }
       else
       {
         debugMessage("MQTT publish: Battery Percent failed");
-        result = 0;
       }
+      aq_mqtt.disconnect(); 
     }
+    return(result);
+  }
 
-    if (rssiLevelPub.publish(rssi))
+  int mqttDeviceWiFiUpdate(int rssi)
+  {
+    int result = 0;
+    if (internetAvailable)
     {
-      debugMessage("MQTT publish: WiFi RSSI succeeded");
-    }
-    else
-    {
-      debugMessage("MQTT publish: WiFi RSSI failed");
-      result = 0;
-    }
+      Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC6, MQTT_QOS_1); // if problematic, remove QOS parameter
 
-    aq_mqtt.disconnect();
+      mqttConnect();
+
+      if (rssiLevelPub.publish(rssi))
+      {
+        debugMessage("MQTT publish: WiFi RSSI succeeded");
+        result = 1;
+      }
+      else
+      {
+        debugMessage("MQTT publish: WiFi RSSI failed");
+      }
+      aq_mqtt.disconnect();
+    }
     return(result);
   }
   
@@ -142,17 +152,14 @@ extern bool internetAvailable;
       result = 0;
     }
     
-    if (co2 != 10000)
+    if(co2Pub.publish(co2))
     {
-      if(co2Pub.publish(co2))
-      {
-        debugMessage("MQTT publish: CO2 succeeded");
-      }
-      else
-      {
-        debugMessage("MQTT publish: CO2 failed");
-        result = 0;
-      }
+      debugMessage("MQTT publish: CO2 succeeded");
+    }
+    else
+    {
+      debugMessage("MQTT publish: CO2 failed");
+      result = 0;
     }
     aq_mqtt.disconnect();
     return(result);
