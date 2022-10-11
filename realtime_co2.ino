@@ -54,12 +54,6 @@ Adafruit_LC709203F lc;
 //#include <Fonts/FreeSans18pt7b.h>
 #include <Fonts/FreeSans24pt7b.h>
 
-#define EPD_CS      12
-#define EPD_DC      13
-#define SRAM_CS     14
-#define EPD_RESET   15 // can set to -1 and share with microcontroller Reset!
-#define EPD_BUSY    32 // can set to -1 to not use a pin (will wait a fixed delay)
-
 // 1.54" Monochrome displays with 200x200 pixels and SSD1681 chipset
 ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
@@ -77,6 +71,17 @@ ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 void setup()
 // One time run of code, then deep sleep
 {
+  // Handle two ESP32 I2C ports
+  #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || \
+    defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || \
+    defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || \
+    defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
+    // ESP32 is kinda odd in that secondary ports must be manually
+    // assigned their pins with setPins()!
+    Wire1.setPins(SDA1, SCL1);
+  #endif
+
+  // Adafruit ESP32 I2C power management
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2)
     // turn on the I2C power by setting pin to opposite of 'rest state'
     // Rev B board is LOW to enable
@@ -88,6 +93,16 @@ void setup()
     digitalWrite(PIN_I2C_POWER, !polarity);
   #endif
 
+  #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2_TFT)
+    pinMode(TFT_I2C_POWER, OUTPUT);
+    digitalWrite(TFT_I2C_POWER, HIGH);
+  #endif
+
+  #if defined(ADAFRUIT_FEATHER_ESP32_V2)
+    // Turn on the I2C power by pulling pin HIGH.
+    pinMode(NEOPIXEL_I2C_POWER, OUTPUT);
+    digitalWrite(NEOPIXEL_I2C_POWER, HIGH);
+  #endif
 
   display.begin(THINKINK_MONO); // changed from THINKINK_GRAYSCALE4 to eliminate black screen border
   debugMessage("Display ready");
@@ -132,13 +147,10 @@ void setup()
     hardwareData.rssi = aq_network.getWiFiRSSI();
 
     #ifdef MQTTLOG
-      // sensor_pub = mqttSensorUpdate(sensorData.internalCO2, sensorData.internalTempF,sensorData.internalHumidity);
-      // device_pub = mqttDeviceWiFiUpdate(hardwareData.rssi);
-      // device_pub = mqttDeviceBatteryUpdate(hardwareData.batteryPercent, hardwareData.batteryVoltage);
       if ((mqttSensorUpdate(sensorData.internalCO2, sensorData.internalTempF,sensorData.internalHumidity)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryPercent, hardwareData.batteryVoltage)))
-      {
-        upd_flags += "M";
-      }
+        {
+          upd_flags += "M";
+        }
     #endif
 
     #ifdef INFLUX
@@ -312,8 +324,18 @@ int initSensor()
   uint16_t error;
   char errorMessage[256];
 
-  Wire.begin();
-  envSensor.begin(Wire);
+  // Handle two ESP32 I2C ports
+  #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || \
+  defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || \
+  defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || \
+  defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
+    Wire1.begin();
+    envSensor.begin(Wire1);
+  #else
+    Wire.begin();
+    envSensor.begin(Wire);
+  #endif
+
   envSensor.wakeUp();
   envSensor.setSensorAltitude(SITE_ALTITUDE); // optimizes CO2 reading
 

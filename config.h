@@ -1,10 +1,26 @@
 // conditional compile flags
-//#define DEBUG 	// Output to serial port
+#define DEBUG 	// Output to serial port
 //#define WIFI    	// use WiFi
 //#define MQTTLOG 	// log sensor data to MQTT broker
 //#define INFLUX  	// Log data to remote InfluxDB server
 
-// sample timing in seconds
+// Pin config for e-paper display
+
+// // Adafruit Feather ESP32 V2
+// #define EPD_CS      12
+// #define EPD_DC      13
+// #define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
+// #define EPD_RESET   15 // can set to -1 and share with chip Reset (can't deep sleep)
+// #define EPD_BUSY    32 // can set to -1 to not use a pin (will wait a fixed delay)
+
+// Adafruit QT PY ESP32-S2
+#define EPD_CS      8		// A3
+#define EPD_DC      9		// A2
+#define SRAM_CS     17	// A1, can set to -1 to not use a pin (uses a lot of RAM!)
+#define EPD_RESET   -1	// can set to -1 and share with chip Reset (can't deep sleep)
+#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
+
+// SCD40 sample timing in seconds
 #ifdef DEBUG
 	#define SAMPLE_INTERVAL 60
 #else
@@ -20,10 +36,10 @@
 
 // select time zone, used by NTPClient
 // const int timeZone = 0;  	// UTC
-const int timeZone = 1; // Ireland
+//const int timeZone = 1; // Ireland
 //const int timeZone = -5;  // USA EST
 //const int timeZone = -4;  // USA EDT
-//const int timeZone = -7;  // USA PDT
+const int timeZone = -7;  // USA PDT
 //const int timeZone = -8;  // USA PST
 
 // Battery parameters
