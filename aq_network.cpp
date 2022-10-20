@@ -71,15 +71,13 @@ String AQ_Network::dateTimeString() {
   String dateTime;
 
 #if defined(WIFI) || defined(RJ45)
-  String weekDays[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
-
   if (timeClient.update()) {
-    // NTPClient doesn't include date information, get it from time structure
-    time_t epochTime = timeClient.getEpochTime();
-    struct tm* ptm = gmtime((time_t*)&epochTime);
-    int day = ptm->tm_mday;
-    int month = ptm->tm_mon + 1;
-    int year = ptm->tm_year + 1900;
+    // // NTPClient doesn't include date information, get it from time structure if needed
+    // time_t epochTime = timeClient.getEpochTime();
+    // struct tm* ptm = gmtime((time_t*)&epochTime);
+    // int day = ptm->tm_mday;
+    // int month = ptm->tm_mon + 1;
+    // int year = ptm->tm_year + 1900;
 
     dateTime = weekDays[timeClient.getDay()];
     dateTime += " at ";

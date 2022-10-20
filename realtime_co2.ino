@@ -21,8 +21,6 @@ typedef struct
   float internalHumidity;
   uint16_t internalCO2;
 } envData;
-
-// global for air characteristics
 envData sensorData;
 
 // hardware status data
@@ -32,8 +30,8 @@ typedef struct
   float batteryVoltage;
   int rssi;
 } hdweData;
-
 hdweData hardwareData;
+
 bool batteryAvailable = false;
 bool internetAvailable = false;
 
@@ -49,10 +47,10 @@ Adafruit_LC709203F lc;
 #include <Adafruit_ThinkInk.h>
 
 #include "Fonts/meteocons16pt7b.h"
-//#include <Fonts/FreeSans9pt7b.h>
+#include <Fonts/FreeSans9pt7b.h>
 #include <Fonts/FreeSans12pt7b.h>
-//#include <Fonts/FreeSans18pt7b.h>
-#include <Fonts/FreeSans24pt7b.h>
+#include <Fonts/FreeSans18pt7b.h>
+//#include <Fonts/FreeSans24pt7b.h>
 
 // 1.54" Monochrome displays with 200x200 pixels and SSD1681 chipset
 ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
@@ -71,65 +69,60 @@ ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 void setup()
 // One time run of code, then deep sleep
 {
-  // Handle two ESP32 I2C ports
-  #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || \
-    defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || \
-    defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || \
-    defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
-    // ESP32 is kinda odd in that secondary ports must be manually
-    // assigned their pins with setPins()!
-    Wire1.setPins(SDA1, SCL1);
-  #endif
+// Handle two ESP32 I2C ports
+#if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
+  // ESP32 is kinda odd in that secondary ports must be manually
+  // assigned their pins with setPins()!
+  Wire1.setPins(SDA1, SCL1);
+#endif
 
-  // Adafruit ESP32 I2C power management
-  #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2)
-    // turn on the I2C power by setting pin to opposite of 'rest state'
-    // Rev B board is LOW to enable
-    // Rev C board is HIGH to enable
-    pinMode(PIN_I2C_POWER, INPUT);
-    delay(1);
-    bool polarity = digitalRead(PIN_I2C_POWER);
-    pinMode(PIN_I2C_POWER, OUTPUT);
-    digitalWrite(PIN_I2C_POWER, !polarity);
-  #endif
+// Adafruit ESP32 I2C power management
+#if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2)
+  // turn on the I2C power by setting pin to opposite of 'rest state'
+  // Rev B board is LOW to enable
+  // Rev C board is HIGH to enable
+  pinMode(PIN_I2C_POWER, INPUT);
+  delay(1);
+  bool polarity = digitalRead(PIN_I2C_POWER);
+  pinMode(PIN_I2C_POWER, OUTPUT);
+  digitalWrite(PIN_I2C_POWER, !polarity);
+#endif
 
-  #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2_TFT)
-    pinMode(TFT_I2C_POWER, OUTPUT);
-    digitalWrite(TFT_I2C_POWER, HIGH);
-  #endif
+#if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2_TFT)
+  pinMode(TFT_I2C_POWER, OUTPUT);
+  digitalWrite(TFT_I2C_POWER, HIGH);
+#endif
 
-  #if defined(ADAFRUIT_FEATHER_ESP32_V2)
-    // Turn on the I2C power by pulling pin HIGH.
-    pinMode(NEOPIXEL_I2C_POWER, OUTPUT);
-    digitalWrite(NEOPIXEL_I2C_POWER, HIGH);
-  #endif
+#if defined(ADAFRUIT_FEATHER_ESP32_V2)
+  // Turn on the I2C power by pulling pin HIGH.
+  pinMode(NEOPIXEL_I2C_POWER, OUTPUT);
+  digitalWrite(NEOPIXEL_I2C_POWER, HIGH);
+#endif
 
-  display.begin(THINKINK_MONO); // changed from THINKINK_GRAYSCALE4 to eliminate black screen border
-  debugMessage("Display ready");
+display.begin(THINKINK_MONO);
 
-  #ifdef DEBUG
-    Serial.begin(115200);
-    // wait for serial port connection
-    while (!Serial);
+#ifdef DEBUG
+  Serial.begin(115200);
+  // wait for serial port connection
+  while (!Serial)
+    ;
 
-    // Confirm key site configuration parameters
-    debugMessage("realtime co2 monitor started");
-    debugMessage("---------------------------------");
-    debugMessage(String(SAMPLE_INTERVAL) + " second sample interval");
-    debugMessage("Client ID: " + String(CLIENT_ID));
-  #endif
+  // Confirm key site configuration parameters
+  debugMessage("realtime co2 monitor started");
+  debugMessage("---------------------------------");
+  debugMessage(String(SAMPLE_INTERVAL) + " second sample interval");
+  debugMessage("Client ID: " + String(CLIENT_ID));
+#endif
 
   // Initialize environmental sensor
-  if (!initSensor()) 
-  {
+  if (!initSensor()) {
     debugMessage("Environment sensor failed to initialize, going to sleep");
     screenAlert("SCD40 not detected");
     deepSleep();
   }
 
   // Environmental sensor available, so fetch values
-  if(!readSensor())
-  {
+  if (!readSensor()) {
     debugMessage("Environment sensor failed to read, going to sleep");
     screenAlert("SCD40 no data");
     deepSleep();
@@ -141,32 +134,40 @@ void setup()
   // Setup network connection specified in config.h
   internetAvailable = aq_network.networkBegin();
 
-  String upd_flags = "";  // To indicate whether services succeeded
-  if (internetAvailable)
+  String upd_flags = "";  // Indicates whether/which external data services were updated
+  if (internetAvailable) 
   {
-    hardwareData.rssi = aq_network.getWiFiRSSI();
+    hardwareData.rssi = abs(aq_network.getWiFiRSSI());
 
+    // Update external data services
     #ifdef MQTTLOG
-      if ((mqttSensorUpdate(sensorData.internalCO2, sensorData.internalTempF,sensorData.internalHumidity)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryPercent, hardwareData.batteryVoltage)))
-        {
+        if ((mqttSensorUpdate(sensorData.internalCO2, sensorData.internalTempF, sensorData.internalHumidity)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryPercent, hardwareData.batteryVoltage))) {
           upd_flags += "M";
         }
     #endif
 
     #ifdef INFLUX
-      // Returns true if successful
-      if (post_influx(sensorData.internalCO2, sensorData.internalTempF, sensorData.internalHumidity, hardwareData.batteryPercent, hardwareData.batteryVoltage, hardwareData.rssi)) {
-        upd_flags += "I";
-      }
+        // Returns true if successful
+        if (post_influx(sensorData.internalCO2, sensorData.internalTempF, sensorData.internalHumidity, hardwareData.batteryPercent, hardwareData.batteryVoltage, hardwareData.rssi)) {
+          upd_flags += "I";
+        }
     #endif
-  }
 
-  // Update the screen if available
-  if (upd_flags == "") {
-    // None of the services succeeded
+    if (upd_flags == "") 
+    {
+      // External data services not updated but we have network time
+      screenInfo(aq_network.dateTimeString());
+    } 
+    else 
+    {
+      // External data services not updated and we have network time
+      screenInfo("[+" + upd_flags + "] " + aq_network.dateTimeString());
+    }
+  }
+  else
+  {
+    // no internet connection, update screen with sensor data only
     screenInfo("");
-  } else {
-    screenInfo("[+" + upd_flags + "] " + aq_network.dateTimeString());
   }
   deepSleep();
 }
@@ -190,14 +191,23 @@ void deepSleep()
   digitalWrite(EPD_RESET, LOW);  // hardware power down mode
   aq_network.networkStop();
 
-  envSensor.stopPeriodicMeasurement();
+  uint16_t error;
+  char errorMessage[256];
+
+  // stop potentially previously started measurement
+  error = envSensor.stopPeriodicMeasurement();
+  if (error) {
+    Serial.print("Error trying to execute stopPeriodicMeasurement(): ");
+    errorToString(error, errorMessage, 256);
+    debugMessage(errorMessage);
+  }
   envSensor.powerDown();
 
-  #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2)
-    // Rev B board is LOW to enable
-    // Rev C board is HIGH to enable
-    digitalWrite(PIN_I2C_POWER, HIGH);
-  #endif
+#if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2)
+  // Rev B board is LOW to enable
+  // Rev C board is HIGH to enable
+  digitalWrite(PIN_I2C_POWER, HIGH);
+#endif
 
   esp_sleep_enable_timer_wakeup(SAMPLE_INTERVAL * SAMPLE_INTERVAL_ESP_MODIFIER);
   esp_deep_sleep_start();
@@ -209,7 +219,7 @@ void screenAlert(String messageText)
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
   display.setFont(&FreeSans12pt7b);
-  display.setCursor(40,(display.height()/2+6));
+  display.setCursor(40, (display.height() / 2 + 6));
   display.print(messageText);
 
   //update display
@@ -217,25 +227,35 @@ void screenAlert(String messageText)
 }
 
 void screenInfo(String messageText)
-// Display environmental information on screen
+// Display environmental information
 {
+  debugMessage("Starting screen refresh");
   // screen size cheats
-  int xLeftMargin = (display.width()/20);
-  // int x_mid_point = (display.width()/2);
+  int xLeftMargin = (display.width() / 20);
 
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
 
-  // battery status
+  // display battery status
   screenBatteryStatus();
 
-  // wifi status
+  // display wifi status
   screenWiFiStatus();
 
+  // Indoor CO2 level
+  // calculate CO2 value range in 400ppm bands
+  int co2range = ((sensorData.internalCO2 - 400) / 400);
+  display.setFont(&FreeSans18pt7b);
+  display.setCursor(xLeftMargin, (display.height() / 4));
+  display.print(String(co2Labels[co2range]) + " CO2");
+  display.setFont(&FreeSans9pt7b);
+  display.setCursor((display.width()-40), (display.height() / 3));
+  display.print(sensorData.internalCO2);
+
   // Indoor temp
-  display.setFont(&FreeSans24pt7b);
-  display.setCursor(xLeftMargin,(display.height()/4));
-  display.print(String((int)(sensorData.internalTempF+0.5)));
+  display.setFont(&FreeSans18pt7b);
+  display.setCursor(xLeftMargin, (display.height() / 2));
+  display.print(String((int)(sensorData.internalTempF + 0.5)));
   // display Fahrenheit symbol
   // move the cursor to raise the F indicator
   //display.setCursor(x,y);
@@ -244,28 +264,16 @@ void screenInfo(String messageText)
 
   // Indoor humidity
   display.setFont(&FreeSans12pt7b);
-  display.setCursor(xLeftMargin,(display.height()*1/2));
-  display.print(String((int)(sensorData.internalHumidity+0.5)) + "% humidity");
-
-  // Indoor CO2 level
-  String co2Labels[3]={"Good","Poor","Bad"};
-  int co2range;
-
-  // default value is 0 for values below 1000
-  co2range = 0;
-  if (sensorData.internalCO2>1000) co2range = 1;
-  if (sensorData.internalCO2>2000) co2range = 2;
-  // display.setFont(&FreeSans9pt7b); 
-  display.setCursor(xLeftMargin,(display.height()*3/4));
-  display.print(String(co2Labels[co2range])+ " CO2, "+ sensorData.internalCO2);
+  display.setCursor(xLeftMargin, (display.height() * 3 / 4));
+  display.print(String((int)(sensorData.internalHumidity + 0.5)) + "% humidity");
 
   // status message
   display.setFont();  // resets to system default monospace font
-  display.setCursor(5,(display.height()-9));
+  display.setCursor(5, (display.height() - 9));
   display.print(messageText);
 
   display.display();
-  debugMessage("Screen updated");
+  debugMessage("completed screen update");
 }
 
 void initBattery() {
@@ -280,10 +288,8 @@ void initBattery() {
   }
 }
 
-void readBattery()
-{
-  if (batteryAvailable)
-  {
+void readBattery() {
+  if (batteryAvailable) {
     hardwareData.batteryPercent = lc.cellPercent();
     hardwareData.batteryVoltage = lc.cellVoltage();
     debugMessage("Battery is at " + String(hardwareData.batteryPercent) + " percent capacity");
@@ -297,60 +303,88 @@ void screenBatteryStatus()
 {
   if (batteryAvailable) 
   {
-    int barHeight = 10;
-    int barWidth = 28;
+    const int barHeight = 10;
+    const int barWidth = 28;
 
     // battery nub (3pix wide, 6pix high)
-    display.drawRect((display.width()-8),((display.height()*1/8)+7),3,6,EPD_BLACK);
+    display.drawRect((display.width() - 8), ((display.height() * 1 / 8) + 7), 3, 6, EPD_BLACK);
     //battery percentage as rectangle fill
-    display.fillRect((display.width()-barWidth-8),((display.height()*1/8)+5),(int((hardwareData.batteryPercent/100)*barWidth)),barHeight,EPD_GRAY);
+    display.fillRect((display.width() - barWidth - 8), ((display.height() * 1 / 8) + 5), (int((hardwareData.batteryPercent / 100) * barWidth)), barHeight, EPD_GRAY);
     // battery border
-    display.drawRect((display.width()-barWidth-8),((display.height()*1/8)+5),barWidth,barHeight,EPD_BLACK);
+    display.drawRect((display.width() - barWidth - 8), ((display.height() * 1 / 8) + 5), barWidth, barHeight, EPD_BLACK);
+    debugMessage("battery status drawn to screen");
   }
 }
 
-void screenWiFiStatus()
+void screenWiFiStatus() 
 {
-  if (internetAvailable)
+  if (internetAvailable) 
   {
-    display.setCursor((display.width()-20),(display.height()-9));
-    display.setFont();
-    display.print("WiFi");
+    const int barWidth = 3;
+    int barCount;
+
+    // Convert RSSI values to a 5 bar visual indicator
+    // Allowed RSSI values are from 40-90. <40 almost never exist and >90 means no signal
+    if (((6-((hardwareData.rssi/10)-3))<6)&((6-((hardwareData.rssi/10)-3))>0))
+    {
+      // 40-50 rssi value = 5 bars, each +10 rssi value range = one less bar
+      barCount = (6-((hardwareData.rssi/10)-3));
+      // draw bars to represent WiFi strength
+      for (int b = 1; b <= barCount; b++)
+      {
+        display.fillRect(((display.width() - 35) + (b * 5)), ((display.height()) - (b * 5)), barWidth, b * 5, EPD_BLACK);
+      }
+      debugMessage(String("WiFi signal strength on screen as ") + barCount +" bars");
+    }
+    // if (hardwareData.rssi > -50)
+    // {
+    //   barCount = 5;
+    // } 
+    // else if (hardwareData.rssi< -50 & hardwareData.rssi > - 60)
+    // {
+    //   barCount = 4;
+    // } 
+    // else if (hardwareData.rssi< -60 & hardwareData.rssi > - 70)
+    // {
+    //   barCount = 3;
+    // } 
+    // else if (hardwareData.rssi< -70 & hardwareData.rssi > - 80)
+    // {
+    //   barCount = 2;
+    // } 
+    // else if (hardwareData.rssi< -80 & hardwareData.rssi > - 90)
+    // {
+    //   barCount = 1;
+    // }
   }
 }
 
-int initSensor() 
-{
+int initSensor() {
   uint16_t error;
   char errorMessage[256];
 
-  // Handle two ESP32 I2C ports
-  #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || \
-  defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || \
-  defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || \
-  defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
-    Wire1.begin();
-    envSensor.begin(Wire1);
-  #else
-    Wire.begin();
-    envSensor.begin(Wire);
-  #endif
+// Handle two ESP32 I2C ports
+#if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
+  Wire1.begin();
+  envSensor.begin(Wire1);
+#else
+  Wire.begin();
+  envSensor.begin(Wire);
+#endif
 
   envSensor.wakeUp();
-  envSensor.setSensorAltitude(SITE_ALTITUDE); // optimizes CO2 reading
+  envSensor.setSensorAltitude(SITE_ALTITUDE);  // optimizes CO2 reading
 
   error = envSensor.startPeriodicMeasurement();
-  if (error) 
-  {
+  if (error) {
     // Failed to initialize SCD40
     errorToString(error, errorMessage, 256);
     debugMessage(String(errorMessage) + " executing SCD40 startPeriodicMeasurement()");
     return 0;
-  }
-  else 
-  {
+  } else {
+    debugMessage("SCD40 initialized, waiting 5 sec for first measurement");
     delay(5000);  // Give SCD40 time to warm up
-    return 1; // success
+    return 1;     // success
   }
 }
 
@@ -361,8 +395,7 @@ int readSensor()
   char errorMessage[256];
 
   error = envSensor.readMeasurement(sensorData.internalCO2, sensorData.internalTempF, sensorData.internalHumidity);
-  if (error) 
-  {
+  if (error) {
     errorToString(error, errorMessage, 256);
     debugMessage(String(errorMessage) + "executing SCD40 readMeasurement()");
     return 0;

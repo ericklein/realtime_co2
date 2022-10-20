@@ -1,8 +1,8 @@
 // conditional compile flags
-#define DEBUG 	// Output to serial port
-//#define WIFI    	// use WiFi
+//#define DEBUG 	// Output to serial port
+#define WIFI    	// use WiFi
 //#define MQTTLOG 	// log sensor data to MQTT broker
-//#define INFLUX  	// Log data to remote InfluxDB server
+#define INFLUX  	// Log data to remote InfluxDB server
 
 // Pin config for e-paper display
 
@@ -24,10 +24,14 @@
 #ifdef DEBUG
 	#define SAMPLE_INTERVAL 60
 #else
-	#define SAMPLE_INTERVAL 300
+	#define SAMPLE_INTERVAL 180
 #endif
 
 #define WIFI_ATTEMPT_LIMIT	5 // max connection attempts to WiFi AP
+
+const String co2Labels[5]={"Good", "OK", "So-So", "Poor", "Bad"};
+// used in aq_network.cpp
+const String weekDays[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
 // millisecond modifier to seconds for sampling interval (ARM)
 // #define SAMPLE_INTERVAL_ARM_MODIFIER 1000
@@ -54,8 +58,8 @@ const int timeZone = -7;  // USA PDT
 // #define BATTERY_APA 0x36 // 3000mAH
 
 // set client ID; used by mqtt and wifi
-#define CLIENT_ID "AQ-test-room"
-// #define CLIENT_ID "AQ-test-room-2"
+//#define CLIENT_ID "AQ-test-room"
+#define CLIENT_ID "AQ-test-room-2"
 // #define CLIENT_ID "AQ-lab-office"
 //#define CLIENT_ID "AQ-kitchen"
 //#define CLIENT_ID "AQ-cellar"
