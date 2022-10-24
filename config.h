@@ -6,19 +6,25 @@
 
 // Pin config for e-paper display
 
-// // Adafruit Feather ESP32 V2
-// #define EPD_CS      12
-// #define EPD_DC      13
-// #define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
-// #define EPD_RESET   15 // can set to -1 and share with chip Reset (can't deep sleep)
-// #define EPD_BUSY    32 // can set to -1 to not use a pin (will wait a fixed delay)
+#if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
+	// Adafruit Feather ESP32 V2
+	#define EPD_CS      12
+	#define EPD_DC      13
+	#define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
+	#define EPD_RESET   15 // can set to -1 and share with chip Reset (can't deep sleep)
+	#define EPD_BUSY    32 // can set to -1 to not use a pin (will wait a fixed delay)
 
-// Adafruit QT PY ESP32-S2
-#define EPD_CS      8		// A3
-#define EPD_DC      9		// A2
-#define SRAM_CS     17	// A1, can set to -1 to not use a pin (uses a lot of RAM!)
-#define EPD_RESET   -1	// can set to -1 and share with chip Reset (can't deep sleep)
-#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
+	// battery pin
+	#define VBATPIN A13
+#endif
+
+#if defined (ARDUINO_ADAFRUIT_QTPY_ESP32S2)
+	#define EPD_CS      8		// A3
+	#define EPD_DC      9		// A2
+	#define SRAM_CS     17	// A1, can set to -1 to not use a pin (uses a lot of RAM!)
+	#define EPD_RESET   -1	// can set to -1 and share with chip Reset (can't deep sleep)
+	#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
+#endif
 
 // SCD40 sample timing in seconds
 #ifdef DEBUG
@@ -73,49 +79,42 @@ const int timeZone = -7;  // USA PDT
 	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/pocket-office.temperature"
 	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/pocket-office.humidity"
 	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/pocket-office.co2"
-	// #define MQTT_PUB_TOPIC4		"sircoolio/feeds/pocket-office.battery-level"
 	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/pocket-office.battery-voltage"
 	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/pocket-office.rssi"
 
 	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/master-bedroom.temperature"
 	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/master-bedroom.humidity"
 	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/master-bedroom.co2"
-	// #define MQTT_PUB_TOPIC4		"sircoolio/feeds/master-bedroom.battery-level"
 	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/master-bedroom.battery-voltage"
 	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/master-bedroom.rssi"
 
 	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/lab-office.temperature"
 	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/lab-office.humidity"
 	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/lab-office.co2"
-	// #define MQTT_PUB_TOPIC4		"sircoolio/feeds/lab-office.battery-level"
 	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/lab-office.battery-voltage"
 	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/lab-office.rssi"
 
 	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/kitchen.temperature"
 	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/kitchen.humidity"
 	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/kitchen.co2"
-	// #define MQTT_PUB_TOPIC4		"sircoolio/feeds/kitchen.battery-level"
 	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/kitchen.battery-voltage"
 	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/kitchen.rssi"
 
 	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/cellar.temperature"
 	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/cellar.humidity"
 	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/cellar.co2"
-	// #define MQTT_PUB_TOPIC4		"sircoolio/feeds/cellar.battery-level"
 	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/cellar.battery-voltage"
 	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/cellar.rssi"
 
 	#define MQTT_PUB_TOPIC1		"sircoolio/feeds/test-room.temperature"
 	#define MQTT_PUB_TOPIC2		"sircoolio/feeds/test-room.humidity"
 	#define MQTT_PUB_TOPIC3		"sircoolio/feeds/test-room.co2"
-	#define MQTT_PUB_TOPIC4		"sircoolio/feeds/test-room.battery-level"
 	#define MQTT_PUB_TOPIC5		"sircoolio/feeds/test-room.battery-voltage"
 	#define MQTT_PUB_TOPIC6		"sircoolio/feeds/test-room.rssi"
 
 	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/test-headless.temperature"
 	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/test-headless.humidity"
 	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/test-headless.co2"
-	// #define MQTT_PUB_TOPIC4		"sircoolio/feeds/test-headless.battery-level"
 	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/test-headless.battery-voltage"
 	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/test-headless.rssi"
 #endif
@@ -139,7 +138,7 @@ const int timeZone = -7;  // USA PDT
 	#define DEVICE_SITE "indoor"
 	#define DEVICE_TYPE "air quality"
 
-	#define INFLUX_ATTEMPT_LIMIT 	5 	// max connection attempts to Influxdb
+	#define INFLUX_ATTEMPT_LIMIT 	3 	// max connection attempts to Influxdb
 #endif
 
 // The following parameters are defined in secrets.h.

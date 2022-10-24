@@ -8,8 +8,12 @@
 // Only compile if InfluxDB enabled
 #ifdef INFLUX
 
-// Shared helper function we call here too...
+// Shared helper function
 extern void debugMessage(String messageText);
+
+// Status variables shared across various functions
+extern bool batteryVoltageAvailable;
+extern bool internetAvailable;
 
 #include <InfluxDbClient.h>
 
@@ -34,7 +38,7 @@ Point dbdevdata(INFLUX_DEV_MEASUREMENT);
 
 // Post data to Influx DB using the connection established during setup
 // Operates over the network, so may take a while to execute.
-boolean post_influx(uint16_t co2, float tempF, float humidity, float battery_p, float battery_v, int rssi)
+boolean post_influx(uint16_t co2, float tempF, float humidity, float battery_v, int rssi)
 {
   Serial.println("Saving data to Influx");
   #ifdef INFLUX_V1
@@ -70,16 +74,14 @@ boolean post_influx(uint16_t co2, float tempF, float humidity, float battery_p, 
     debugMessage("InfluxDB connection failed: " + dbclient.getLastErrorMessage());
     return(false);  // Failed...
   }
-  else {
+  else 
+  {
     // Connected, so store sensor values into timeseries data point
     dbenvdata.clearFields();
     // Report sensor readings
     dbenvdata.addField("temperature", tempF);
     dbenvdata.addField("humidity", humidity);
-    if (co2 !=10000)
-    {
-      dbenvdata.addField("co2", co2);
-    }
+    dbenvdata.addField("co2", co2);
     debugMessage("Writing: " + dbclient.pointToLineProtocol(dbenvdata));
     // Write point via connection to InfluxDB host
     if (!dbclient.writePoint(dbenvdata)) {
@@ -90,16 +92,20 @@ boolean post_influx(uint16_t co2, float tempF, float humidity, float battery_p, 
     // Now store device information 
     dbdevdata.clearFields();
     // Report device readings
-    dbdevdata.addField("battery_pct", battery_p);
-    dbdevdata.addField("battery_volts", battery_v);
-    dbdevdata.addField("rssi", rssi);
-    debugMessage("Writing: " + dbclient.pointToLineProtocol(dbdevdata));
-    // Write point via connection to InfluxDB host
-    if (!dbclient.writePoint(dbdevdata)) {
-      debugMessage("InfluxDB write failed: " + dbclient.getLastErrorMessage());
-      dbsuccess = false;  // So close...
+    if (batteryVoltageAvailable)
+      dbdevdata.addField("battery_volts", battery_v);
+    if (internetAvailable)
+      dbdevdata.addField("rssi", rssi);
+    if ((batteryVoltageAvailable) || (internetAvailable))
+    {
+      // Write point via connection to InfluxDB host
+      debugMessage("Writing: " + dbclient.pointToLineProtocol(dbdevdata));
+      if (!dbclient.writePoint(dbdevdata))
+      {
+        debugMessage("InfluxDB write failed: " + dbclient.getLastErrorMessage());
+        dbsuccess = false;  // So close...
+      }
     }
-    
     dbclient.flushBuffer();  // Clear pending writes (before going to sleep)
   }
   return(dbsuccess);

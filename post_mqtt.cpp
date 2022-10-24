@@ -8,11 +8,11 @@
 #include "aq_network.h"
 extern AQ_Network aq_network;
 
-// Shared helper function we call here too...
+// Shared helper function
 extern void debugMessage(String messageText);
 
 // Status variables shared across various functions
-extern bool batteryAvailable;
+extern bool batteryVoltageAvailable;
 extern bool internetAvailable;
 
 #ifdef MQTTLOG
@@ -65,26 +65,14 @@ extern bool internetAvailable;
     }
   }
 
-  int mqttDeviceBatteryUpdate(float cellPercent, float cellVoltage)
+  int mqttDeviceBatteryUpdate(float cellVoltage)
   {
     int result = 0;
-    if (batteryAvailable)
+    if (batteryVoltageAvailable)
     {
-      Adafruit_MQTT_Publish batteryPercentPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC4, MQTT_QOS_1); // if problematic, remove QOS parameter
-      Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC5, MQTT_QOS_1);
+      Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC5, MQTT_QOS_1); // if problematic, remove QOS parameter
 
       mqttConnect();
-
-      // publish battery perecent
-      if (batteryPercentPub.publish(cellPercent))
-      {
-        debugMessage("MQTT publish: Battery Percent succeeded");
-        result = 1;
-      }
-      else
-      {
-        debugMessage("MQTT publish: Battery Percent failed");
-      }
 
       // publish battery voltage
       if (batteryVoltagePub.publish(cellVoltage))
