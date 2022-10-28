@@ -26,12 +26,15 @@
 	#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
 #endif
 
-// SCD40 sample timing in seconds
+// Interval between SCD40 samples in seconds
 #ifdef DEBUG
 	#define SAMPLE_INTERVAL 60
 #else
 	#define SAMPLE_INTERVAL 180
 #endif
+
+// Sleep time if hardware error occurs in seconds
+#define HARDWARE_ERROR_INTERVAL 10
 
 #define WIFI_ATTEMPT_LIMIT	5 // max connection attempts to WiFi AP
 

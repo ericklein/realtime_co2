@@ -8,7 +8,6 @@
 
 // Shared helper function we call here too...
 extern void debugMessage(String messageText);
-extern bool batteryAvailable;
 
 // Includes and defines specific to WiFi network connectivity
 #ifdef WIFI

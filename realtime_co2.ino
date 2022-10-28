@@ -73,8 +73,7 @@ void setup()
   #ifdef DEBUG
     Serial.begin(115200);
     // wait for serial port connection
-    while (!Serial)
-      ;
+    while (!Serial);
 
     // Confirm key site configuration parameters
     debugMessage("realtime co2 monitor started");
@@ -90,15 +89,17 @@ void setup()
   // Initialize environmental sensor
   if (!initSensor()) {
     debugMessage("Environment sensor failed to initialize, going to sleep");
-    screenAlert("SCD40 not detected");
-    disableInternalPower();
+    screenAlert("NO SCD40");
+    // This error often occurs right after a firmware flash and reset.
+    // Hardware deep sleep typically resolves it, so quickly cycle the hardware
+    disableInternalPower(HARDWARE_ERROR_INTERVAL*SAMPLE_INTERVAL_ESP_MODIFIER);
   }
 
   // Environmental sensor available, so fetch values
   if (!readSensor()) {
     debugMessage("Environment sensor failed to read, going to sleep");
     screenAlert("SCD40 no data");
-    disableInternalPower();
+    disableInternalPower(HARDWARE_ERROR_INTERVAL*SAMPLE_INTERVAL_ESP_MODIFIER);
   }
 
   batteryReadVoltage();
@@ -141,7 +142,7 @@ void setup()
     // no internet connection, update screen with sensor data only
     screenInfo("");
   }
-  disableInternalPower();
+  disableInternalPower(SAMPLE_INTERVAL*SAMPLE_INTERVAL_ESP_MODIFIER);
 }
 
 void loop() {}
@@ -325,20 +326,28 @@ void screenWiFiStatus()
   if (internetAvailable) 
   {
     const int barWidth = 3;
+    const int barHeightMultiplier = 5;
+    const int barSpacingMultipler = 5;
+    const int barStartingXModifier = 35;
     int barCount;
 
     // Convert RSSI values to a 5 bar visual indicator
-    // Allowed RSSI values are from 40-90. <40 almost never exist and >90 means no signal
-    if (((6-((hardwareData.rssi/10)-3))<6)&((6-((hardwareData.rssi/10)-3))>0))
+    // >90 means no signal
+    barCount = (6-((hardwareData.rssi/10)-3));
+    if (barCount>5) barCount = 5;
+    if (barCount>0)
     {
-      // 40-50 rssi value = 5 bars, each +10 rssi value range = one less bar
-      barCount = (6-((hardwareData.rssi/10)-3));
+      // <50 rssi value = 5 bars, each +10 rssi value range = one less bar
       // draw bars to represent WiFi strength
       for (int b = 1; b <= barCount; b++)
       {
-        display.fillRect(((display.width() - 35) + (b * 5)), ((display.height()) - (b * 5)), barWidth, b * 5, EPD_BLACK);
+        display.fillRect(((display.width() - barStartingXModifier) + (b * barSpacingMultipler)), ((display.height()) - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, EPD_BLACK);
       }
       debugMessage(String("WiFi signal strength on screen as ") + barCount +" bars");
+    }
+    else
+    {
+      debugMessage("RSSI out of expected range");
     }
   }
 }
@@ -435,7 +444,7 @@ void enableInternalPower()
   #endif
 }
 
-void disableInternalPower()
+void disableInternalPower(float deepSleepTime)
 // Powers down hardware in preparation for board deep sleep
 {
   display.powerDown();
@@ -476,7 +485,7 @@ void disableInternalPower()
     debugMessage("disabled Adafruit Feather ESP32S2 I2C power");
   #endif
 
-  debugMessage(String("Going to sleep for ") + SAMPLE_INTERVAL + " second(s)");
-  esp_sleep_enable_timer_wakeup(SAMPLE_INTERVAL * SAMPLE_INTERVAL_ESP_MODIFIER);
+  debugMessage(String("Going to sleep for ") + (deepSleepTime/SAMPLE_INTERVAL_ESP_MODIFIER) + " second(s)");
+  esp_sleep_enable_timer_wakeup(deepSleepTime);
   esp_deep_sleep_start();
 }
