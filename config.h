@@ -1,11 +1,74 @@
-// conditional compile flags
-//#define DEBUG 	// Output to serial port
+// Step 0: Set conditional compile flags
+#define DEBUG 	// Output to serial port
 #define WIFI    	// use WiFi
-//#define MQTTLOG 	// log sensor data to MQTT broker
+#define MQTTLOG 	// log sensor data to MQTT broker
 #define INFLUX  	// Log data to remote InfluxDB server
 
-// Pin config for e-paper display
+// Step 1: Set battery size if connected
+// based on a settings curve in the LC709203F datasheet
+// #define BATTERY_APA 0x08 // 100mAH
+// #define BATTERY_APA 0x0B // 200mAH
+// #define BATTERY_APA 0x10 // 500mAH
+// #define BATTERY_APA 0x19 // 1000mAH
+// #define BATTERY_APA 0x1D // 1200mAH
+#define BATTERY_APA 0x2D // 2000mAH
+// #define BATTERY_APA 0x32 // 2500mAH
+// #define BATTERY_APA 0x36 // 3000mAH
 
+// Step 2: Set the room the device will be used in
+const String DEVICE_LOCATION = "demo";
+//#define DEVICE_LOCATION "demo"
+// #define DEVICE_LOCATION "lab-office"
+// #define DEVICE_LOCATION "kitchen"
+// #define DEVICE_LOCATION "cellar"
+// #define DEVICE_LOCATION "master-bedroom"
+// #define DEVICE_LOCATION "pocket-office"
+
+// set client ID; used by MQTT and wifi
+//const char * clientID = "AQ-" + (char *) (DEVICE_LOCATION);
+
+// Stuff that almost never changes
+
+#ifdef MQTTLOG
+	// set MQTT parameters
+	#define MQTT_ATTEMPT_LIMIT 	3 	// max connection attempts to MQTT broker
+
+	// Adafruit I/O
+	// structure: username/feeds/groupname.feedname or username/feeds/feedname
+	// const String MQTT_PUB_TOPIC1 = "sircoolio/feeds/" + String(DEVICE_LOCATION) ".temperature";
+	// const String MQTT_PUB_TOPIC2 = "sircoolio/feeds/" + String(DEVICE_LOCATION) ".humidity";
+	// const String MQTT_PUB_TOPIC3 = "sircoolio/feeds/" + String(DEVICE_LOCATION) ".co2";
+	// const String MQTT_PUB_TOPIC5 = "sircoolio/feeds/" + String(DEVICE_LOCATION) ".battery-voltage";
+	// const String MQTT_PUB_TOPIC6 = "sircoolio/feeds/" + String(DEVICE_LOCATION) ".rssi";
+
+	// Generic MQTT template
+	const char* mqttFeedRoot = "7828/";
+	const char* mqttTemperatureFeedName = "/temperature";
+	const char* mqttHumidityFeedName = "/humidity";
+	const char* mqttCO2FeedName = "/co2";
+	const char* mqttVoltageFeedName = "/battery-voltage";
+	const char* mqttRSSIFeedName = "/rssi";
+
+	#define MQTT_PUB_TOPIC1		"7828/demo/temperature"
+	#define MQTT_PUB_TOPIC2		"7828/demo/humidity"
+	#define MQTT_PUB_TOPIC3		"7828/demo/co2"
+	#define MQTT_PUB_TOPIC5		"7828/demo/battery-voltage"
+	#define MQTT_PUB_TOPIC6		"7828/rssi"
+#endif
+
+#ifdef INFLUX  
+  // Name of Measurements expected/used in the Influx DB.
+  #define INFLUX_ENV_MEASUREMENT "weather"  // Used for environmental sensor data
+  #define INFLUX_DEV_MEASUREMENT "device"   // Used for logging AQI device data (e.g. battery)
+  
+	// DEVICE_LOCATION is defined above
+	#define DEVICE_SITE "indoor"
+	#define DEVICE_TYPE "air quality"
+
+	#define INFLUX_ATTEMPT_LIMIT 	3 	// max connection attempts to Influxdb
+#endif
+
+// Pin config for e-paper display
 #if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
 	// Adafruit Feather ESP32 V2
 	#define EPD_CS      12
@@ -18,7 +81,7 @@
 	#define VBATPIN A13
 #endif
 
-#if defined (ARDUINO_ADAFRUIT_QTPY_ESP32S2)
+#if defined (ARDUINO_ADAFRUIT_QTPY_ESP32S2) // QT PY
 	#define EPD_CS      8		// A3
 	#define EPD_DC      9		// A2
 	#define SRAM_CS     17	// A1, can set to -1 to not use a pin (uses a lot of RAM!)
@@ -55,96 +118,8 @@ const String weekDays[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 const int timeZone = -7;  // USA PDT
 //const int timeZone = -8;  // USA PST
 
-// Battery parameters
-// based on a settings curve in the LC709203F datasheet
-// #define BATTERY_APA 0x08 // 100mAH
-// #define BATTERY_APA 0x0B // 200mAH
-// #define BATTERY_APA 0x10 // 500mAH
-// #define BATTERY_APA 0x19 // 1000mAH
-// #define BATTERY_APA 0x1D // 1200mAH
-#define BATTERY_APA 0x2D // 2000mAH
-// #define BATTERY_APA 0x32 // 2500mAH
-// #define BATTERY_APA 0x36 // 3000mAH
+// secrets.h template
 
-// set client ID; used by mqtt and wifi
-//#define CLIENT_ID "AQ-test-room"
-#define CLIENT_ID "AQ-test-room-2"
-// #define CLIENT_ID "AQ-lab-office"
-//#define CLIENT_ID "AQ-kitchen"
-//#define CLIENT_ID "AQ-cellar"
-// #define CLIENT_ID "AQ-master-bedroom"
-// #define CLIENT_ID "AQ-pocket-office"
-
-#ifdef MQTTLOG
-	// set MQTT parameters
-	#define MQTT_ATTEMPT_LIMIT 	3 	// max connection attempts to MQTT broker
-
-	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/pocket-office.temperature"
-	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/pocket-office.humidity"
-	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/pocket-office.co2"
-	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/pocket-office.battery-voltage"
-	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/pocket-office.rssi"
-
-	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/master-bedroom.temperature"
-	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/master-bedroom.humidity"
-	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/master-bedroom.co2"
-	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/master-bedroom.battery-voltage"
-	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/master-bedroom.rssi"
-
-	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/lab-office.temperature"
-	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/lab-office.humidity"
-	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/lab-office.co2"
-	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/lab-office.battery-voltage"
-	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/lab-office.rssi"
-
-	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/kitchen.temperature"
-	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/kitchen.humidity"
-	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/kitchen.co2"
-	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/kitchen.battery-voltage"
-	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/kitchen.rssi"
-
-	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/cellar.temperature"
-	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/cellar.humidity"
-	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/cellar.co2"
-	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/cellar.battery-voltage"
-	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/cellar.rssi"
-
-	#define MQTT_PUB_TOPIC1		"sircoolio/feeds/test-room.temperature"
-	#define MQTT_PUB_TOPIC2		"sircoolio/feeds/test-room.humidity"
-	#define MQTT_PUB_TOPIC3		"sircoolio/feeds/test-room.co2"
-	#define MQTT_PUB_TOPIC5		"sircoolio/feeds/test-room.battery-voltage"
-	#define MQTT_PUB_TOPIC6		"sircoolio/feeds/test-room.rssi"
-
-	// #define MQTT_PUB_TOPIC1		"sircoolio/feeds/test-headless.temperature"
-	// #define MQTT_PUB_TOPIC2		"sircoolio/feeds/test-headless.humidity"
-	// #define MQTT_PUB_TOPIC3		"sircoolio/feeds/test-headless.co2"
-	// #define MQTT_PUB_TOPIC5		"sircoolio/feeds/test-headless.battery-voltage"
-	// #define MQTT_PUB_TOPIC6		"sircoolio/feeds/test-headless.rssi"
-#endif
-
-#ifdef INFLUX  
-  // Name of Measurements expected/used in the Influx DB.
-  #define INFLUX_ENV_MEASUREMENT "weather"  // Used for environmental sensor data
-  #define INFLUX_DEV_MEASUREMENT "device"   // Used for logging AQI device data (e.g. battery)
-  
-	// Standard set of tag values used for each sensor data point stored to InfluxDB.  Reuses
-  // CLIENT_ID as defined anove here in config.h as well as device location (e.g., room in 
-  // the house) and site (indoors vs. outdoors, typically).
-	// #define DEVICE_LOCATION "test room"
-  #define DEVICE_LOCATION "test room 2"
-	//#define DEVICE_LOCATION "kitchen"
-	// #define DEVICE_LOCATION "cellar"
-	// #define DEVICE_LOCATION "lab-office"
-	// #define DEVICE_LOCATION "master bedroom"
-  // #define DEVICE_LOCATION "pocket-office"
-
-	#define DEVICE_SITE "indoor"
-	#define DEVICE_TYPE "air quality"
-
-	#define INFLUX_ATTEMPT_LIMIT 	3 	// max connection attempts to Influxdb
-#endif
-
-// The following parameters are defined in secrets.h.
 // 	WiFi credentials (if WiFi enabled)
 // 	#define WIFI_SSID
 // 	#define WIFI_PASS

@@ -79,7 +79,7 @@ void setup()
     debugMessage("realtime co2 monitor started");
     debugMessage("---------------------------------");
     debugMessage(String(SAMPLE_INTERVAL) + " second sample interval");
-    debugMessage("Client ID: " + String(CLIENT_ID));
+    //debugMessage("Client ID: " + String(clientID));
   #endif
 
   enableInternalPower();

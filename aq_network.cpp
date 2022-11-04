@@ -21,6 +21,20 @@ extern void debugMessage(String messageText);
     #include <WiFi.h>
 #endif
 
+// Assemble the device clientID, used by MQTT and WiFi
+const String clientIDPrefix = "AQ-";
+String clientIDtoo = clientIDPrefix + DEVICE_LOCATION;
+char clientID[clientIDtoo.length() + 1]; 
+strcpy(clientID, clientIDtoo.c_str()); 
+
+// char* clientID;
+// clientID = poop;
+
+// const char* clientIDPrefix = "AQ-";
+// char * clientID = (char *) malloc(1 + strlen(clientIDPrefix) + strlen(DEVICE_LOCATION));
+// strcpy(clientID, clientIDPrefix);
+// strcpy(clientID, char*(DEVICE_LOCATION));
+
 WiFiClient client;
 //WiFiClientSecure client; // for SSL
 
@@ -58,7 +72,7 @@ WiFiUDP ntpUDP;
   // MQTT setup
   #include <Adafruit_MQTT.h>
   #include <Adafruit_MQTT_Client.h>
-  Adafruit_MQTT_Client aq_mqtt(&client, MQTT_BROKER, MQTT_PORT, CLIENT_ID, MQTT_USER, MQTT_PASS);
+  Adafruit_MQTT_Client aq_mqtt(&client, MQTT_BROKER, MQTT_PORT, clientID, MQTT_USER, MQTT_PASS);
 #endif
 
 //****************************************************************************************************
@@ -152,8 +166,8 @@ bool AQ_Network::networkBegin() {
   uint8_t tries;
 
   // set hostname has to come before WiFi.begin
-  WiFi.hostname(CLIENT_ID);
-  // WiFi.setHostname(CLIENT_ID); //for WiFiNINA
+  WiFi.hostname(clientID);
+  // WiFi.setHostname(clientID); //for WiFiNINA
 
   // Connect to WiFi.  Prepared to wait a reasonable interval for the connection to
   // succeed, but not forever.  Will check status and, if not connected, delay an

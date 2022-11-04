@@ -70,6 +70,14 @@ extern bool internetAvailable;
     int result = 0;
     if (batteryVoltageAvailable)
     {
+
+  //       char * feedPrefix = (char *) malloc(1 + strlen(location)+ strlen(char*(DEVICE_LOCATION)));
+  // strcpy(feedPrefix, location);
+  // strcpy(feedPrefix, char*(DEVICE_LOCATION));
+
+  // const String feedPrefix = String(location) +String(DEVICE_LOCATION);
+
+  
       Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC5, MQTT_QOS_1); // if problematic, remove QOS parameter
 
       mqttConnect();
