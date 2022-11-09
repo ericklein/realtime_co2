@@ -54,7 +54,7 @@ WiFiUDP ntpUDP;
 
 // MQTT interface depends on the underlying network client object, which is defined and
 // managed here (so needs to be defined here).
-#ifdef MQTTLOG
+#ifdef MQTT
   // MQTT setup
   #include <Adafruit_MQTT.h>
   #include <Adafruit_MQTT_Client.h>

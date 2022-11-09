@@ -15,7 +15,7 @@ extern void debugMessage(String messageText);
 extern bool batteryVoltageAvailable;
 extern bool internetAvailable;
 
-#ifdef MQTTLOG
+#ifdef MQTT
   // MQTT setup
   #include <Adafruit_MQTT.h>
   #include <Adafruit_MQTT_Client.h>
@@ -36,19 +36,19 @@ extern bool internetAvailable;
     while ((mqttErr = aq_mqtt.connect() != 0) && (tries<=MQTT_ATTEMPT_LIMIT))
     {
       // generic MQTT error
-      // debugMessage(mqtt.connectErrorString(mqttErr));
+      debugMessage(aq_mqtt.connectErrorString(mqttErr));
   
       // Adafruit IO connect errors
-      switch (mqttErr)
-      {
-        case 1: debugMessage("Adafruit MQTT: Wrong protocol"); break;
-        case 2: debugMessage("Adafruit MQTT: ID rejected"); break;
-        case 3: debugMessage("Adafruit MQTT: Server unavailable"); break;
-        case 4: debugMessage("Adafruit MQTT: Incorrect user or password"); break;
-        case 5: debugMessage("Adafruit MQTT: Not authorized"); break;
-        case 6: debugMessage("Adafruit MQTT: Failed to subscribe"); break;
-        default: debugMessage("Adafruit MQTT: GENERIC - Connection failed"); break;
-      }
+      // switch (mqttErr)
+      // {
+      //   case 1: debugMessage("Adafruit MQTT: Wrong protocol"); break;
+      //   case 2: debugMessage("Adafruit MQTT: ID rejected"); break;
+      //   case 3: debugMessage("Adafruit MQTT: Server unavailable"); break;
+      //   case 4: debugMessage("Adafruit MQTT: Incorrect user or password"); break;
+      //   case 5: debugMessage("Adafruit MQTT: Not authorized"); break;
+      //   case 6: debugMessage("Adafruit MQTT: Failed to subscribe"); break;
+      //   default: debugMessage("Adafruit MQTT: GENERIC - Connection failed"); break;
+      // }
       debugMessage(String(MQTT_BROKER) + " connect attempt " + tries + " of " + MQTT_ATTEMPT_LIMIT + " happens in " + (tries*10) + " seconds");
       aq_mqtt.disconnect();
       delay(tries*10000);
@@ -70,8 +70,8 @@ extern bool internetAvailable;
     int result = 0;
     if (batteryVoltageAvailable)
     {
-      Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC5, MQTT_QOS_1); // if problematic, remove QOS parameter
-
+      //Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC5, MQTT_QOS_1); // if problematic, remove QOS parameter
+      Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC5);
       mqttConnect();
 
       // publish battery voltage
@@ -94,8 +94,8 @@ extern bool internetAvailable;
     int result = 0;
     if (internetAvailable)
     {
-      Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC6, MQTT_QOS_1); // if problematic, remove QOS parameter
-
+      // Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC6, MQTT_QOS_1); // if problematic, remove QOS parameter
+      Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC6);
       mqttConnect();
 
       if (rssiLevelPub.publish(rssi))
@@ -115,9 +115,12 @@ extern bool internetAvailable;
   int mqttSensorUpdate(uint16_t co2, float tempF, float humidity)
   // Publishes sensor data to MQTT broker
   {
-    Adafruit_MQTT_Publish tempPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC1, MQTT_QOS_1);
-    Adafruit_MQTT_Publish humidityPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC2, MQTT_QOS_1);
-    Adafruit_MQTT_Publish co2Pub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC3, MQTT_QOS_1);
+    // Adafruit_MQTT_Publish tempPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC1, MQTT_QOS_1); // if problematic, remove QOS parameter
+    // Adafruit_MQTT_Publish humidityPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC2, MQTT_QOS_1);
+    // Adafruit_MQTT_Publish co2Pub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC3, MQTT_QOS_1);
+    Adafruit_MQTT_Publish tempPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC1);
+    Adafruit_MQTT_Publish humidityPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC2);
+    Adafruit_MQTT_Publish co2Pub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC3);   
     int result = 1;
     
     mqttConnect();

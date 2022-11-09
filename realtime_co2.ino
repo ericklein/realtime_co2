@@ -7,7 +7,7 @@
 
 // hardware and internet configuration parameters
 #include "config.h"
-// private credentials for network, MQTT, weather provider
+// private credentials for network, MQTT
 #include "secrets.h"
 
 // Generalized network handling
@@ -59,7 +59,7 @@ ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
   extern boolean post_influx(uint16_t co2, float tempF, float humidity, float battery_v, int rssi);
 #endif
 
-#ifdef MQTTLOG
+#ifdef MQTT
   extern void mqttConnect();
   extern int mqttDeviceWiFiUpdate(int rssi);
   extern int mqttDeviceBatteryUpdate(float cellVoltage);
@@ -113,7 +113,7 @@ void setup()
     hardwareData.rssi = abs(aq_network.getWiFiRSSI());
 
     // Update external data services
-    #ifdef MQTTLOG
+    #ifdef MQTT
         if ((mqttSensorUpdate(sensorData.internalCO2, sensorData.internalTempF, sensorData.internalHumidity)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage))) {
           upd_flags += "M";
         }
@@ -188,6 +188,7 @@ void screenInfo(String messageText)
   // Indoor CO2 level
   // calculate CO2 value range in 400ppm bands
   int co2range = ((sensorData.internalCO2 - 400) / 400);
+  co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
   display.setFont(&FreeSans18pt7b);
   display.setCursor(xLeftMargin, (display.height() / 4));
   display.print(String(co2Labels[co2range]) + " CO2");
