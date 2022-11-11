@@ -36,13 +36,13 @@
 	#define VBATPIN A13
 #endif
 
-// #if defined (ARDUINO_ADAFRUIT_QTPY_ESP32S2)
+#if defined (ARDUINO_ADAFRUIT_QTPY_ESP32S2)
 	#define EPD_CS      8		// A3
 	#define EPD_DC      9		// A2
 	#define SRAM_CS     17	// A1, can set to -1 to not use a pin (uses a lot of RAM!)
 	#define EPD_RESET   -1	// can set to -1 and share with chip Reset (can't deep sleep)
 	#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
-// #endif
+#endif
 
 // Interval between SCD40 samples in seconds
 #ifdef DEBUG
