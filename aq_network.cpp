@@ -19,14 +19,10 @@ extern void debugMessage(String messageText);
     #include <ESP8266WiFi.h>
   #else
     #include <WiFi.h>
-#endif
+  #endif
 
-WiFiClient client;
-//WiFiClientSecure client; // for SSL
-
-// NTP support
-#include <WiFiUdp.h>
-WiFiUDP ntpUDP;
+  WiFiClient client;
+  //WiFiClientSecure client; // for SSL
 #endif
 
 // Includes and defines specific to Ethernet (wired) network connectivity
@@ -36,17 +32,12 @@ WiFiUDP ntpUDP;
   #include <SPI.h>
   #include <Ethernet.h>
   EthernetClient client;
-
-  // NTP support
-  #include <EthernetUdp.h>
-  EthernetUDP ntpUDP;
 #endif
 
-// Network services independent of physiccal connection
+// Network services independent of physical connection
 #if defined(WIFI) || defined(RJ45)
   // NTP setup
-  #include <NTPClient.h>
-  NTPClient timeClient(ntpUDP);
+  #include "time.h"
 
   // Generalized access to HTTP services atop WiFi or Ethernet connections
   #include <HTTPClient.h>
@@ -64,82 +55,6 @@ WiFiUDP ntpUDP;
 //****************************************************************************************************
 // AQ_Network Class and Member Functions
 //
-
-// Converts system time into human readable strings. Depends on NTP service access
-String AQ_Network::dateTimeString() {
-  String dateTime;
-
-#if defined(WIFI) || defined(RJ45)
-  if (timeClient.update()) {
-    // // NTPClient doesn't include date information, get it from time structure if needed
-    // time_t epochTime = timeClient.getEpochTime();
-    // struct tm* ptm = gmtime((time_t*)&epochTime);
-    // int day = ptm->tm_mday;
-    // int month = ptm->tm_mon + 1;
-    // int year = ptm->tm_year + 1900;
-
-    dateTime = weekDays[timeClient.getDay()];
-    dateTime += " at ";
-    if (timeClient.getHours() < 10) dateTime += "0";
-    dateTime += timeClient.getHours();
-    dateTime += ":";
-    if (timeClient.getMinutes() < 10) dateTime += "0";
-    dateTime += timeClient.getMinutes();
-
-    // long human readable
-    // dateTime = weekDays[timeClient.getDay()];
-    // dateTime += ", ";
-
-    // if (month<10) dateTime += "0";
-    // dateTime += month;
-    // dateTime += "-";
-    // if (day<10) dateTime += "0";
-    // dateTime += day;
-    // dateTime += " at ";
-    // if (timeClient.getHours()<10) dateTime += "0";
-    // dateTime += timeClient.getHours();
-    // dateTime += ":";
-    // if (timeClient.getMinutes()<10) dateTime += "0";
-    // dateTime += timeClient.getMinutes();
-
-    // zulu format
-    // dateTime = year + "-";
-    // if (month()<10) dateTime += "0";
-    // dateTime += month;
-    // dateTime += "-";
-    // if (day()<10) dateTime += "0";
-    // dateTime += day;
-    // dateTime += "T";
-    // if (timeClient.getHours()<10) dateTime += "0";
-    // dateTime += timeClient.getHours();
-    // dateTime += ":";
-    // if (timeClient.getMinutes()<10) dateTime += "0";
-    // dateTime += timeClient.getMinutes();
-    // dateTime += ":";
-    // if (timeClient.getSeconds()<10) dateTime += "0";
-    // dateTime += timeClient.getSeconds();
-    // switch (timeZone)
-    // {
-    //   case 0:
-    //     dateTime += "Z";
-    //     break;
-    //   case -7:
-    //     dateTime += "PDT";
-    //     break;
-    //   case -8:
-    //     dateTime += "PST";
-    //     break;
-    // }
-  } else {
-    dateTime = "Can't reach time service";
-  }
-#else
-  // If no network defined
-  dateTime = "No network to set time";
-#endif
-
-  return dateTime;
-}
 
 // Initialize network and connect.  If connection succeeds initialize NTP connection so
 // device can report accurate local time.  Returns boolean indicating whether network is
@@ -207,17 +122,13 @@ bool AQ_Network::networkBegin() {
 
 #if defined(WIFI) || defined(RJ45)
   if (networkAvailable) {
-    // Get time from NTP
-    timeClient.begin();
-    // Set offset time in seconds to adjust for your timezone
-    timeClient.setTimeOffset(timeZone * 60 * 60);
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);    
     debugMessage("NTP time: " + dateTimeString());
   }
 #endif
 
   return (networkAvailable);
 }
-
 
 String AQ_Network::httpGETRequest(const char* serverName) {
   String payload = "{}";
@@ -328,4 +239,79 @@ bool AQ_Network::isConnected() {
 #else
   return (false);
 #endif
+}
+
+// Converts system time into human readable strings. Use NTP service
+String AQ_Network::dateTimeString() {
+  String dateTime;
+
+#if defined(WIFI) || defined(RJ45)
+  struct tm timeInfo;
+  if (getLocalTime(&timeInfo)) {
+    int day = timeInfo.tm_wday;
+    // int month = timeInfo.tm_mon;
+    // int year = timeInfo.tm_year + 1900;
+    int hour = timeInfo.tm_hour;
+    int minutes = timeInfo.tm_min;
+    // int seconds = timeinfo.tm_sec;
+
+    // short human readable format
+    dateTime = weekDays[day];
+    dateTime += " at ";
+    if (hour < 10) dateTime += "0";
+    dateTime += hour;
+    dateTime += ":";
+    if (minutes < 10) dateTime += "0";
+    dateTime += minutes;
+
+    // long human readable
+    // dateTime = weekDays[day];
+    // dateTime += ", ";
+
+    // if (month<10) dateTime += "0";
+    // dateTime += month;
+    // dateTime += "-";
+    // if (day<10) dateTime += "0";
+    // dateTime += day;
+    // dateTime += " at ";
+    // if (hour<10) dateTime += "0";
+    // dateTime += hour;
+    // dateTime += ":";
+    // if (minutes<10) dateTime += "0";
+    // dateTime += minutes;
+
+    // zulu format
+    // dateTime = year + "-";
+    // if (month()<10) dateTime += "0";
+    // dateTime += month;
+    // dateTime += "-";
+    // if (day()<10) dateTime += "0";
+    // dateTime += day;
+    // dateTime += "T";
+    // if (hour<10) dateTime += "0";
+    // dateTime += hour;
+    // dateTime += ":";
+    // if (minutes<10) dateTime += "0";
+    // dateTime += minutes;
+    // dateTime += ":";
+    // if (seconds<10) dateTime += "0";
+    // dateTime += seconds;
+    // switch (gmtOffset_sec)
+    // {
+    //   case 0:
+    //     dateTime += "Z";
+    //     break;
+    //   case -28800:
+    //     dateTime += "PDT";
+    //     break;
+    // }
+  } else {
+    dateTime = "Can't reach time service";
+  }
+#else
+  // If no network defined
+  dateTime = "No network to set time";
+#endif
+
+  return dateTime;
 }
