@@ -92,14 +92,14 @@ void setup()
     screenAlert("NO SCD40");
     // This error often occurs right after a firmware flash and reset.
     // Hardware deep sleep typically resolves it, so quickly cycle the hardware
-    disableInternalPower(HARDWARE_ERROR_INTERVAL*SAMPLE_INTERVAL_ESP_MODIFIER);
+    disableInternalPower(HARDWARE_ERROR_INTERVAL);
   }
 
   // Environmental sensor available, so fetch values
   if (!readSensor()) {
     debugMessage("Environment sensor failed to read, going to sleep");
     screenAlert("SCD40 no data");
-    disableInternalPower(HARDWARE_ERROR_INTERVAL*SAMPLE_INTERVAL_ESP_MODIFIER);
+    disableInternalPower(HARDWARE_ERROR_INTERVAL);
   }
 
   batteryReadVoltage();
@@ -142,7 +142,7 @@ void setup()
     // no internet connection, update screen with sensor data only
     screenInfo("");
   }
-  disableInternalPower(SAMPLE_INTERVAL*SAMPLE_INTERVAL_ESP_MODIFIER);
+  disableInternalPower(SAMPLE_INTERVAL);
 }
 
 void loop() {}
@@ -445,7 +445,7 @@ void enableInternalPower()
   #endif
 }
 
-void disableInternalPower(float deepSleepTime)
+void disableInternalPower(int deepSleepTime)
 // Powers down hardware in preparation for board deep sleep
 {
   display.powerDown();
@@ -486,7 +486,7 @@ void disableInternalPower(float deepSleepTime)
     debugMessage("disabled Adafruit Feather ESP32S2 I2C power");
   #endif
 
-  debugMessage(String("Going to sleep for ") + (deepSleepTime/SAMPLE_INTERVAL_ESP_MODIFIER) + " second(s)");
-  esp_sleep_enable_timer_wakeup(deepSleepTime);
+  debugMessage(String("Going to sleep for ") + (deepSleepTime) + " second(s)");
+  esp_sleep_enable_timer_wakeup(deepSleepTime*1000000); // ESP microsecond modifier
   esp_deep_sleep_start();
 }

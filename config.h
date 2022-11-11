@@ -6,10 +6,10 @@
 */
 
 // Step 1: Set conditional compile flags
-//#define DEBUG 	// Output to serial port
+#define DEBUG 	// Output to serial port
 #define WIFI   	// use WiFi
 #define MQTT 		// log sensor data to MQTT broker
-#define INFLUX	// Log data to remote InfluxDB server
+#define INFLUX	// Log data to InfluxDB server
 
 // Step 2: Set battery size if applicable
 // based on a settings curve in the LC709203F datasheet
@@ -36,13 +36,13 @@
 	#define VBATPIN A13
 #endif
 
-// #if defined (ARDUINO_ADAFRUIT_QTPY_ESP32S2)
+#if defined (ARDUINO_ADAFRUIT_QTPY_ESP32S2)
 	#define EPD_CS      8		// A3
 	#define EPD_DC      9		// A2
 	#define SRAM_CS     17	// A1, can set to -1 to not use a pin (uses a lot of RAM!)
 	#define EPD_RESET   -1	// can set to -1 and share with chip Reset (can't deep sleep)
 	#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
-// #endif
+#endif
 
 // Interval between SCD40 samples in seconds
 #ifdef DEBUG
@@ -54,27 +54,25 @@
 // Sleep time if hardware error occurs in seconds
 #define HARDWARE_ERROR_INTERVAL 10
 
-#define WIFI_ATTEMPT_LIMIT	5 // max connection attempts to WiFi AP
-
 const String co2Labels[5]={"Good", "OK", "So-So", "Poor", "Bad"};
 // used in aq_network.cpp
 const String weekDays[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
-// millisecond modifier to seconds for sampling interval (ARM)
-// #define SAMPLE_INTERVAL_ARM_MODIFIER 1000
-// microsecond modifier to seonds for sampling interval (ESP)
-#define SAMPLE_INTERVAL_ESP_MODIFIER 1000000
+// NTP time configuration
 
-// select time zone, used by NTPClient
-// const int timeZone = 0;  	// UTC
-//const int timeZone = 1; // Ireland
-//const int timeZone = -5;  // USA EST
-//const int timeZone = -4;  // USA EDT
-const int timeZone = -7;  // USA PDT
-//const int timeZone = -8;  // USA PST
+//https://cplusplus.com/reference/ctime/tm/
+
+#define ntpServer "pool.ntp.org"
+// const long  gmtOffset_sec = 0; // UTC
+// const long  gmtOffset_sec = 3600; // Ireland
+const long  gmtOffset_sec = -28800; // PST
+const int   daylightOffset_sec = 0;
+// const int   daylightOffset_sec = 3600; // US DT
 
 // set client ID; used by mqtt and wifi
 #define CLIENT_ID "RCO2"
+
+#define WIFI_ATTEMPT_LIMIT	5 // max connection attempts to WiFi AP
 
 #ifdef MQTT
 	// set MQTT parameters
