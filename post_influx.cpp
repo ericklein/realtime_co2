@@ -60,19 +60,19 @@ boolean post_influx(uint16_t co2, float tempF, float humidity, float battery_v, 
 
   // If confirmed connection to InfluxDB server, store our data values (with retries)
   boolean dbsuccess = false;
-  uint8_t dbtries;
-  for (dbtries = 1; dbtries <= INFLUX_ATTEMPT_LIMIT; dbtries++) {
-    debugMessage(String("InfluxDB connection attempt ") + dbtries + " of "+ INFLUX_ATTEMPT_LIMIT + " in " + (dbtries*10) + " seconds");
+  int dbtries;
+  for (dbtries = 1; dbtries <= CONNECT_ATTEMPT_LIMIT; dbtries++) {
+    debugMessage(String("InfluxDB connection attempt ") + dbtries + " of "+ CONNECT_ATTEMPT_LIMIT + " in " + String(CONNECT_ATTEMPT_INTERVAL) + " seconds");
     if (dbclient.validateConnection()) {
       debugMessage("Connected to InfluxDB: " + dbclient.getServerUrl());
       dbsuccess = true;
       break;
     }
-    delay(dbtries * 10000); // Waiting longer each time we check for status
+    delay(CONNECT_ATTEMPT_INTERVAL*1000);
   }
   if(dbsuccess == false) {
     debugMessage("InfluxDB connection failed: " + dbclient.getLastErrorMessage());
-    return(false);  // Failed...
+    return(false);
   }
   else 
   {

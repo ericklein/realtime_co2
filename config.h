@@ -72,12 +72,10 @@ const int   daylightOffset_sec = 0;
 // set client ID; used by mqtt and wifi
 #define CLIENT_ID "RCO2"
 
-#define WIFI_ATTEMPT_LIMIT	5 // max connection attempts to WiFi AP
+#define CONNECT_ATTEMPT_LIMIT	3 // max connection attempts to internet services
+#define CONNECT_ATTEMPT_INTERVAL 10 // seconds between internet service connect attempts
 
 #ifdef MQTT
-	// set MQTT parameters
-	#define MQTT_ATTEMPT_LIMIT 	3 	// max connection attempts to MQTT broker
-
 	// Adafruit I/O
 	// structure: username/feeds/groupname.feedname or username/feeds/feedname
 	// e.g. #define MQTT_PUB_TOPIC1		"sircoolio/feeds/pocket-office.temperature"
@@ -109,8 +107,6 @@ const int   daylightOffset_sec = 0;
 
 	#define DEVICE_SITE "indoor"
 	#define DEVICE_TYPE "air quality"
-
-	#define INFLUX_ATTEMPT_LIMIT 	3 	// max connection attempts to Influxdb
 #endif
 
 // The following parameters are defined in secrets.h.

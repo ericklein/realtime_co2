@@ -1,1 +1,3 @@
 secrets.h
+*.sublime-project
+*.sublime-workspace
