@@ -70,27 +70,26 @@ bool AQ_Network::networkBegin() {
   WiFi.hostname(CLIENT_ID);
   // WiFi.setHostname(CLIENT_ID); //for WiFiNINA
 
-  // Connect to WiFi.  Prepared to wait a reasonable interval for the connection to
-  // succeed, but not forever.  Will check status and, if not connected, delay an
-  // increasing amount of time up to a maximum of WIFI_ATTEMPT_LIMIT delay intervals.
+  // Connect to WiFi. Attempts connection and if unsuccessful, re-attempts after
+  // CONNECT_ATTEMPT_INTERVAL second delay for CONNECT_ATTEMPT_LIMIT delay intervals.
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-  for (tries = 1; tries <= WIFI_ATTEMPT_LIMIT; tries++) {
-    debugMessage(String("Connection attempt ") + tries + " of " + WIFI_ATTEMPT_LIMIT + " to " + WIFI_SSID + " in " + (tries * 10) + " seconds");
-    if (WiFi.status() == WL_CONNECTED) {
-      // Successful connection!
+  for (tries = 1; tries <= CONNECT_ATTEMPT_LIMIT; tries++) {
+    debugMessage(String("Connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " to " + WIFI_SSID);
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      debugMessage("WiFi IP address is: " + WiFi.localIP().toString());
+      debugMessage("RSSI is: " + String(getWiFiRSSI()) + " dBm");
       networkAvailable = true;
       break;
     }
     // use of delay OK as this is initialization code
-    delay(tries * 10000);  // Waiting longer each time we check for status
+    debugMessage(String("Attempt failed, trying again in ") + CONNECT_ATTEMPT_INTERVAL + " seconds");
+    delay(CONNECT_ATTEMPT_INTERVAL * 1000);
   }
-  if (networkAvailable) {
-    debugMessage("WiFi IP address is: " + WiFi.localIP().toString());
-    debugMessage("RSSI is: " + String(getWiFiRSSI()) + " dBm");
-  } else {
+  if (!networkAvailable) {
     // Couldn't connect, alas
-    debugMessage(String("Can not connect to WFii after ") + WIFI_ATTEMPT_LIMIT + " attempts");
+    debugMessage(String("Can not connect to WiFi after ") + CONNECT_ATTEMPT_LIMIT + " attempts");
   }
 #endif
 
