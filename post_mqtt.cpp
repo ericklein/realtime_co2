@@ -35,10 +35,10 @@ extern bool internetAvailable;
     }
     for(tries =1; tries <= CONNECT_ATTEMPT_LIMIT; tries++)
     {
-      debugMessage(String(MQTT_BROKER) + " connect attempt " + tries + " of " + CONNECT_ATTEMPT_LIMIT + " happens in " + (CONNECT_ATTEMPT_INTERVAL) + " seconds");
-      if (mqttErr = aq_mqtt.connect() == 0)
+      debugMessage(String(MQTT_BROKER) + " connect attempt " + tries + " of " + CONNECT_ATTEMPT_LIMIT);
+      if ((mqttErr = aq_mqtt.connect()) == 0)
       {
-        debugMessage(String("Connected to MQTT broker ") + MQTT_BROKER);
+        debugMessage("Connected to MQTT broker");
         return;
       }
       else
@@ -58,6 +58,7 @@ extern bool internetAvailable;
         //   default: debugMessage("Adafruit MQTT: GENERIC - Connection failed"); break;
         // }
         aq_mqtt.disconnect();
+        debugMessage(String("Attempt failed, trying again in ") + CONNECT_ATTEMPT_INTERVAL + " seconds");
         delay(CONNECT_ATTEMPT_INTERVAL*1000);
       }
     }
