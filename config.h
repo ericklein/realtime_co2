@@ -15,10 +15,10 @@
 // based on a settings curve in the LC709203F datasheet
 // #define BATTERY_APA 0x08 // 100mAH
 // #define BATTERY_APA 0x0B // 200mAH
-// #define BATTERY_APA 0x10 // 500mAH
+#define BATTERY_APA 0x10 // 500mAH
 // #define BATTERY_APA 0x19 // 1000mAH
 // #define BATTERY_APA 0x1D // 1200mAH
-#define BATTERY_APA 0x2D // 2000mAH
+// #define BATTERY_APA 0x2D // 2000mAH
 // #define BATTERY_APA 0x32 // 2500mAH
 // #define BATTERY_APA 0x36 // 3000mAH
 
@@ -44,14 +44,18 @@
 	#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
 #endif
 
-// Interval between SCD40 samples in seconds
+// SCD40 sample timing
 #ifdef DEBUG
-	#define SAMPLE_INTERVAL 60
+	// number of times SCD40 is read, last read is the sample value
+	#define READS_PER_SAMPLE	1
+	// time between samples in seconds
+	#define SAMPLE_INTERVAL		60
 #else
-	#define SAMPLE_INTERVAL 180
+	#define READS_PER_SAMPLE	5
+	#define SAMPLE_INTERVAL 	180
 #endif
 
-// Sleep time if hardware error occurs in seconds
+// Sleep time in seconds if hardware error occurs
 #define HARDWARE_ERROR_INTERVAL 10
 
 const String co2Labels[5]={"Good", "OK", "So-So", "Poor", "Bad"};

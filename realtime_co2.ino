@@ -97,8 +97,8 @@ void setup()
 
   // Environmental sensor available, so fetch values
   if (!readSensor()) {
-    debugMessage("Environment sensor failed to read, going to sleep");
-    screenAlert("SCD40 no data");
+    debugMessage("SCD40 returned no/bad data, going to sleep");
+    screenAlert("SCD40 no/bad data");
     disableInternalPower(HARDWARE_ERROR_INTERVAL);
   }
 
@@ -383,21 +383,33 @@ int initSensor() {
 }
 
 int readSensor()
-// reads environment sensor and stores data to environment global
+// reads SCD40 READS_PER_SAMPLE times then stores last read
 {
   uint16_t error;
   char errorMessage[256];
 
-  error = envSensor.readMeasurement(sensorData.internalCO2, sensorData.internalTempF, sensorData.internalHumidity);
-  if (error) {
-    errorToString(error, errorMessage, 256);
-    debugMessage(String(errorMessage) + "executing SCD40 readMeasurement()");
-    return 0;
+  screenAlert("CO2 check");
+  for (int loop=0; loop<READ_PER_SAMPLE; loop++)
+  {
+    // minimum time between SCD40 reads
+    delay(5000);
+    // read and store data if successful
+    error = envSensor.readMeasurement(sensorData.internalCO2, sensorData.internalTempF, sensorData.internalHumidity);
+    // handle SCD40 errors
+    if (error) {
+      errorToString(error, errorMessage, 256);
+      debugMessage(String(errorMessage) + "executing SCD40 readMeasurement()");
+      return 0;
+    }
+    if (sensorData.internalCO2<440 || sensorData.internalCO2>6000)
+    {
+      debugMessage("SCD40 CO2 reading out of range");
+      return 0;
+    }
+    //convert C to F for temp
+    sensorData.internalTempF = (sensorData.internalTempF * 1.8) + 32;
+    debugMessage(String("SCD40 read ") + loop + "of 5: " + sensorData.internalTempF + "F, " + sensorData.internalHumidity + "%, " + sensorData.internalCO2 + " ppm");
   }
-  //convert C to F for temp
-  sensorData.internalTempF = (sensorData.internalTempF * 1.8) + 32;
-
-  debugMessage(String("SCD40 values: ") + sensorData.internalTempF + "F, " + sensorData.internalHumidity + "%, " + sensorData.internalCO2 + " ppm");
   return 1;
 }
 
