@@ -217,7 +217,7 @@ void screenInfo(String messageText)
 #else
   // Indoor CO2 level
   // calculate CO2 value range in 400ppm bands
-  int co2range = ((sensorData.internalCO2 - 400) / 400);
+  int co2range = ((sensorData.ambientCO2 - 400) / 400);
   co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
   display.setFont(&FreeSans18pt7b);
   display.setCursor(xLeftMargin, 50);
@@ -229,11 +229,11 @@ void screenInfo(String messageText)
   display.print("2");
   //display.setFont(&FreeSans9pt7b);
   display.setCursor((xLeftMargin+90),75);
-  display.print("(" + String(sensorData.internalCO2) + ")");
+  display.print("(" + String(sensorData.ambientCO2) + ")");
 
   // Indoor temp
   display.setFont(&FreeSans18pt7b);
-  int tempF = sensorData.internalTempF + 0.5;
+  int tempF = sensorData.ambientTempF + 0.5;
   if(tempF < 100) {
     display.setCursor(xLeftMargin,130);
     display.print(String(tempF));
@@ -260,7 +260,7 @@ void screenInfo(String messageText)
   // Indoor humidity
   display.setFont(&FreeSans18pt7b);
   display.setCursor(display.width()/2, 130);
-  display.print(String((int)(sensorData.internalHumidity + 0.5)));
+  display.print(String((int)(sensorData.ambientHumidity + 0.5)));
   /*
   display.setFont(&FreeSans12pt7b);
   display.setCursor(xLeftMargin+45,155);
