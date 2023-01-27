@@ -37,7 +37,6 @@ Point dbenvdata(INFLUX_ENV_MEASUREMENT);
 Point dbdevdata(INFLUX_DEV_MEASUREMENT);
 
 // Post data to Influx DB using the connection established during setup
-// Operates over the network, so may take a while to execute.
 boolean post_influx(uint16_t co2, float tempF, float humidity, float battery_v, int rssi)
 {
   Serial.println("Saving data to Influx");
