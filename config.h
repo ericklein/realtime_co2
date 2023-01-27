@@ -6,9 +6,9 @@
 */
 
 // Step 1: Set conditional compile flags
-#define DEBUG 	// Output to serial port
+//#define DEBUG 	// Output to serial port
 #define WIFI   	// use WiFi
-#define MQTT 		// log sensor data to MQTT broker
+// #define MQTT 		// log sensor data to M/QTT broker
 #define INFLUX	// Log data to InfluxDB server
 
 // Step 2: Set battery size if applicable
@@ -44,7 +44,16 @@
 	#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
 #endif
 
+// Allows screen orientation to be rotated using the GFX library, though the settings
+// very from device to device so require trial and error to understand.  Supported
+// rotation values are 0, 1, 2, and 3.
+//
+// For the Adafruit 1.5" Monochrome EPD, rotation 1 orients the display so the wiring is
+// at the top.  A rotation of 3 flips it so the wiring is at the bottom.
+#define DISPLAY_ROTATION 1
+  
 // Interval between SCD40 samples in seconds
+
 #ifdef DEBUG
 	#define SAMPLE_INTERVAL 60
 #else
@@ -72,10 +81,12 @@ const int   daylightOffset_sec = 0;
 // set client ID; used by mqtt and wifi
 #define CLIENT_ID "RCO2"
 
-#define CONNECT_ATTEMPT_LIMIT	3 // max connection attempts to internet services
-#define CONNECT_ATTEMPT_INTERVAL 10 // seconds between internet service connect attempts
+#define WIFI_ATTEMPT_LIMIT	5 // max connection attempts to WiFi AP
 
 #ifdef MQTT
+	// set MQTT parameters
+	#define MQTT_ATTEMPT_LIMIT 	3 	// max connection attempts to MQTT broker
+
 	// Adafruit I/O
 	// structure: username/feeds/groupname.feedname or username/feeds/feedname
 	// e.g. #define MQTT_PUB_TOPIC1		"sircoolio/feeds/pocket-office.temperature"
@@ -107,6 +118,8 @@ const int   daylightOffset_sec = 0;
 
 	#define DEVICE_SITE "indoor"
 	#define DEVICE_TYPE "air quality"
+
+	#define INFLUX_ATTEMPT_LIMIT 	3 	// max connection attempts to Influxdb
 #endif
 
 // The following parameters are defined in secrets.h.

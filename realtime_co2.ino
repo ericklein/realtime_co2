@@ -10,6 +10,9 @@
 // private credentials for network, MQTT
 #include "secrets.h"
 
+// Special glyphs for the UI
+#include "glyphs.h"
+
 // Generalized network handling
 #include "aq_network.h"
 AQ_Network aq_network;
@@ -60,7 +63,7 @@ ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 #endif
 
 #ifdef MQTT
-  //extern void mqttConnect();
+  extern void mqttConnect();
   extern int mqttDeviceWiFiUpdate(int rssi);
   extern int mqttDeviceBatteryUpdate(float cellVoltage);
   extern int mqttSensorUpdate(uint16_t co2, float tempF, float humidity);
@@ -85,6 +88,7 @@ void setup()
   enableInternalPower();
 
   display.begin(THINKINK_MONO);
+  display.setRotation(DISPLAY_ROTATION);
 
   // Initialize environmental sensor
   if (!initSensor()) {
@@ -185,6 +189,7 @@ void screenInfo(String messageText)
   // display wifi status
   screenWiFiStatus();
 
+#ifdef ORIGINAL_LAYOUT
   // Indoor CO2 level
   // calculate CO2 value range in 400ppm bands
   int co2range = ((sensorData.internalCO2 - 400) / 400);
@@ -210,6 +215,64 @@ void screenInfo(String messageText)
   display.setFont(&FreeSans12pt7b);
   display.setCursor(xLeftMargin, (display.height() * 3 / 4));
   display.print(String((int)(sensorData.internalHumidity + 0.5)) + "% humidity");
+#else
+
+  // Indoor CO2 level
+  // calculate CO2 value range in 400ppm bands
+  int co2range = ((sensorData.internalCO2 - 400) / 400);
+  co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
+  display.setFont(&FreeSans18pt7b);
+  display.setCursor(xLeftMargin, 50);
+  display.print("CO");
+  display.setCursor(xLeftMargin+65,50);
+  display.print(": " + String(co2Labels[co2range]));
+  display.setFont(&FreeSans12pt7b);
+  display.setCursor(xLeftMargin+50,60);
+  display.print("2");
+  //display.setFont(&FreeSans9pt7b);
+  display.setCursor((xLeftMargin+90),75);
+  display.print("(" + String(sensorData.internalCO2) + ")");
+
+  // Indoor temp
+  display.setFont(&FreeSans18pt7b);
+  int tempF = sensorData.internalTempF + 0.5;
+  if(tempF < 100) {
+    display.setCursor(xLeftMargin,130);
+    display.print(String(tempF));
+    /*
+    display.setFont(&FreeSans12pt7b);
+    display.setCursor(xLeftMargin+45,130);
+    display.print("F");
+    */
+    display.drawBitmap(xLeftMargin+42,104,epd_bitmap_temperatureF_icon_sm,20,28,EPD_BLACK);
+  }
+  else {
+    display.setCursor(xLeftMargin,130);
+    display.print(String(tempF));
+    display.setFont(&FreeSans12pt7b);
+    display.setCursor(xLeftMargin+65,130);
+    display.print("F"); 
+  }
+  // display Fahrenheit symbol
+  // move the cursor to raise the F indicator
+  //display.setCursor(x,y);
+  // display.setFont(&meteocons16pt7b);
+  // display.print("+");
+
+  // Indoor humidity
+  display.setFont(&FreeSans18pt7b);
+  display.setCursor(display.width()/2, 130);
+  display.print(String((int)(sensorData.internalHumidity + 0.5)));
+  /*
+  display.setFont(&FreeSans12pt7b);
+  display.setCursor(xLeftMargin+45,155);
+  display.print("%RH");
+  */
+  // display.drawLine(xLeftMargin+45,131,xLeftMargin+70,131,EPD_BLACK);
+  // display.drawLine(xLeftMargin+45,155,xLeftMargin+70,155,EPD_BLACK);
+  display.drawBitmap(display.width()/2+42,104,epd_bitmap_humidity_icon_sm4,20,28,EPD_BLACK);
+
+#endif
 
   // status message
   display.setFont();  // resets to system default monospace font
