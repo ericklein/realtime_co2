@@ -17,9 +17,9 @@ AQ_Network aq_network;
 // environment sensor data
 typedef struct
 {
-  float internalTempF;
-  float internalHumidity;
-  uint16_t internalCO2;
+  float ambientTempF;
+  float ambientHumidity;
+  uint16_t ambientCO2;
 } envData;
 envData sensorData;
 
@@ -114,14 +114,14 @@ void setup()
 
     // Update external data services
     #ifdef MQTT
-        if ((mqttSensorUpdate(sensorData.internalCO2, sensorData.internalTempF, sensorData.internalHumidity)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage))) {
+        if ((mqttSensorUpdate(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage))) {
           upd_flags += "M";
         }
     #endif
 
     #ifdef INFLUX
         // Returns true if successful
-        if (post_influx(sensorData.internalCO2, sensorData.internalTempF, sensorData.internalHumidity, hardwareData.batteryVoltage, hardwareData.rssi)) {
+        if (post_influx(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity, hardwareData.batteryVoltage, hardwareData.rssi)) {
           upd_flags += "I";
         }
     #endif
@@ -187,19 +187,19 @@ void screenInfo(String messageText)
 
   // Indoor CO2 level
   // calculate CO2 value range in 400ppm bands
-  int co2range = ((sensorData.internalCO2 - 400) / 400);
+  int co2range = ((sensorData.ambientCO2 - 400) / 400);
   co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
   display.setFont(&FreeSans18pt7b);
   display.setCursor(xLeftMargin, (display.height() / 4));
   display.print(String(co2Labels[co2range]) + " CO2");
   display.setFont(&FreeSans9pt7b);
   display.setCursor((display.width()-40), (display.height() / 3));
-  display.print(sensorData.internalCO2);
+  display.print(sensorData.ambientCO2);
 
   // Indoor temp
   display.setFont(&FreeSans18pt7b);
   display.setCursor(xLeftMargin, (display.height() / 2));
-  display.print(String((int)(sensorData.internalTempF + 0.5)));
+  display.print(String((int)(sensorData.ambientTempF + 0.5)));
   // display Fahrenheit symbol
   // move the cursor to raise the F indicator
   //display.setCursor(x,y);
@@ -209,7 +209,7 @@ void screenInfo(String messageText)
   // Indoor humidity
   display.setFont(&FreeSans12pt7b);
   display.setCursor(xLeftMargin, (display.height() * 3 / 4));
-  display.print(String((int)(sensorData.internalHumidity + 0.5)) + "% humidity");
+  display.print(String((int)(sensorData.ambientHumidity + 0.5)) + "% humidity");
 
   // status message
   display.setFont();  // resets to system default monospace font
@@ -389,26 +389,26 @@ int readSensor()
   char errorMessage[256];
 
   screenAlert("CO2 check");
-  for (int loop=0; loop<READ_PER_SAMPLE; loop++)
+  for (int loop=0; loop<READS_PER_SAMPLE; loop++)
   {
     // minimum time between SCD40 reads
     delay(5000);
     // read and store data if successful
-    error = envSensor.readMeasurement(sensorData.internalCO2, sensorData.internalTempF, sensorData.internalHumidity);
+    error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity);
     // handle SCD40 errors
     if (error) {
       errorToString(error, errorMessage, 256);
-      debugMessage(String(errorMessage) + "executing SCD40 readMeasurement()");
+      debugMessage(String(errorMessage) + " error during SCD4X read");
       return 0;
     }
-    if (sensorData.internalCO2<440 || sensorData.internalCO2>6000)
+    if (sensorData.ambientCO2<440 || sensorData.ambientCO2>6000)
     {
       debugMessage("SCD40 CO2 reading out of range");
       return 0;
     }
     //convert C to F for temp
-    sensorData.internalTempF = (sensorData.internalTempF * 1.8) + 32;
-    debugMessage(String("SCD40 read ") + loop + "of 5: " + sensorData.internalTempF + "F, " + sensorData.internalHumidity + "%, " + sensorData.internalCO2 + " ppm");
+    sensorData.ambientTempF = (sensorData.ambientTempF * 1.8) + 32;
+    debugMessage(String("SCD40 read ") + loop + "of 5: " + sensorData.ambientTempF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm");
   }
   return 1;
 }

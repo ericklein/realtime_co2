@@ -6,7 +6,7 @@
 */
 
 // Step 1: Set conditional compile flags
-#define DEBUG 	// Output to serial port
+//#define DEBUG 	// Output to serial port
 #define WIFI   	// use WiFi
 #define MQTT 		// log sensor data to MQTT broker
 #define INFLUX	// Log data to InfluxDB server
@@ -112,29 +112,3 @@ const int   daylightOffset_sec = 0;
 	#define DEVICE_SITE "indoor"
 	#define DEVICE_TYPE "air quality"
 #endif
-
-// The following parameters are defined in secrets.h.
-// 	WiFi credentials (if WiFi enabled)
-// 	#define WIFI_SSID
-// 	#define WIFI_PASS
-
-// If MQTT enabled
-// 	#define MQTT_PORT
-// 	#define MQTT_USER
-// 	#define MQTT_BROKER
-// 	#define MQTT_PASS
-
-// If InfluxDB data storage enabled
-// For an InfluxDB v1.X server:
-// #define INFLUX_V1
-// #define INFLUXDB_URL 
-// #define INFLUXDB_DB_NAME
-// #define INFLUXDB_USER
-// #define INFLUXDB_PASSWORD
-//
-// For an InfluxDB v2.X server:
-// #define INFLUX_V2
-// #define INFLUXDB_URL 
-// #define INFLUXDB_TOKEN
-// #define INFLUXDB_ORG
-// #define INFLUXDB_BUCKET
