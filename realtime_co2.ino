@@ -10,21 +10,24 @@
 // private credentials for network, MQTT
 #include "secrets.h"
 
-// Special glyphs for the UI
-#include "glyphs.h"
-
 // Generalized network handling
 #include "aq_network.h"
 AQ_Network aq_network;
 
+// read/write to ESP32 persistent storage
+#include <Preferences.h>
+Preferences nvStorage;
+
 // environment sensor data
 typedef struct
 {
-  float ambientTempF;
-  float ambientHumidity;
-  uint16_t ambientCO2;
+  float     ambientTempF;
+  float     ambientHumidity;
+  uint16_t  ambientCO2;
 } envData;
 envData sensorData;
+
+uint16_t co2Samples[co2MaxStoredSamples];
 
 // hardware status data
 typedef struct
@@ -53,17 +56,28 @@ Adafruit_LC709203F lc;
 #include <Fonts/FreeSans9pt7b.h>
 #include <Fonts/FreeSans12pt7b.h>
 #include <Fonts/FreeSans18pt7b.h>
+// Special glyphs for the UI
+#include "glyphs.h"
 //#include <Fonts/FreeSans24pt7b.h>
 
 // 1.54" Monochrome displays with 200x200 pixels and SSD1681 chipset
 ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
+
+// screen layout assists
+const int xLeftMargin = 10;
+const int xRightMargin = ((display.width()) - (2 * xLeftMargin));
+const int yCO2 = 50;
+const int ySparkline = 95;
+const int ytemp = 170;
+const int yMessage = display.height()- 9;
+const int sparklineHeight = 40;
 
 #ifdef INFLUX
   extern boolean post_influx(uint16_t co2, float tempF, float humidity, float battery_v, int rssi);
 #endif
 
 #ifdef MQTT
-  extern void mqttConnect();
+  // extern void mqttConnect();
   extern int mqttDeviceWiFiUpdate(int rssi);
   extern int mqttDeviceBatteryUpdate(float cellVoltage);
   extern int mqttSensorUpdate(uint16_t co2, float tempF, float humidity);
@@ -106,6 +120,14 @@ void setup()
     disableInternalPower(HARDWARE_ERROR_INTERVAL);
   }
 
+  // retrieve the historical CO2 sample data
+  int storedCounter;
+  storedCounter = nvStorageRead();
+  storedCounter++;
+  // store the latest CO2 measurement in sample memory and nvStorage
+  co2Samples[storedCounter] = sensorData.ambientCO2;
+  nvStorageWrite(storedCounter);
+
   batteryReadVoltage();
 
   // Setup network connection specified in config.h
@@ -144,7 +166,11 @@ void setup()
   else
   {
     // no internet connection, update screen with sensor data only
-    screenInfo("");
+    #ifdef DEBUG
+      screenInfo("Test messsage");
+    #else
+      screenInfo("");
+    #endif
   }
   disableInternalPower(SAMPLE_INTERVAL);
 }
@@ -175,10 +201,10 @@ void screenAlert(String messageText)
 
 void screenInfo(String messageText)
 // Display environmental information
+// CO2 @ 50, temp/humid @ 125, sparkline @ 140, message/info @ 191
+
 {
   debugMessage("Starting screen refresh");
-  // screen size cheats
-  int xLeftMargin = (display.width() / 20);
 
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
@@ -189,92 +215,50 @@ void screenInfo(String messageText)
   // display wifi status
   screenWiFiStatus();
 
-#ifdef ORIGINAL_LAYOUT
+  // display sparkline
+  screenSparkLines(xLeftMargin,ySparkline,(display.width() - (2* xLeftMargin)),sparklineHeight);
+
   // Indoor CO2 level
   // calculate CO2 value range in 400ppm bands
   int co2range = ((sensorData.ambientCO2 - 400) / 400);
   co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
-  display.setFont(&FreeSans18pt7b);
-  display.setCursor(xLeftMargin, (display.height() / 4));
-  display.print(String(co2Labels[co2range]) + " CO2");
-  display.setFont(&FreeSans9pt7b);
-  display.setCursor((display.width()-40), (display.height() / 3));
-  display.print(sensorData.ambientCO2);
 
-  // Indoor temp
   display.setFont(&FreeSans18pt7b);
-  display.setCursor(xLeftMargin, (display.height() / 2));
-  display.print(String((int)(sensorData.ambientTempF + 0.5)));
-  // display Fahrenheit symbol
-  // move the cursor to raise the F indicator
-  //display.setCursor(x,y);
-  display.setFont(&meteocons16pt7b);
-  display.print("+");
-
-  // Indoor humidity
-  display.setFont(&FreeSans12pt7b);
-  display.setCursor(xLeftMargin, (display.height() * 3 / 4));
-#else
-  // Indoor CO2 level
-  // calculate CO2 value range in 400ppm bands
-  int co2range = ((sensorData.ambientCO2 - 400) / 400);
-  co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
-  display.setFont(&FreeSans18pt7b);
-  display.setCursor(xLeftMargin, 50);
+  display.setCursor(xLeftMargin, yCO2);
   display.print("CO");
-  display.setCursor(xLeftMargin+65,50);
+  display.setCursor(xLeftMargin+65,yCO2);
   display.print(": " + String(co2Labels[co2range]));
   display.setFont(&FreeSans12pt7b);
-  display.setCursor(xLeftMargin+50,60);
+  display.setCursor(xLeftMargin+50,yCO2+10);
   display.print("2");
-  //display.setFont(&FreeSans9pt7b);
-  display.setCursor((xLeftMargin+90),75);
+  display.setCursor((xLeftMargin+90),yCO2+25);
   display.print("(" + String(sensorData.ambientCO2) + ")");
 
   // Indoor temp
-  display.setFont(&FreeSans18pt7b);
   int tempF = sensorData.ambientTempF + 0.5;
+  display.setFont(&FreeSans18pt7b);
   if(tempF < 100) {
-    display.setCursor(xLeftMargin,130);
+    display.setCursor(xLeftMargin,ytemp);
     display.print(String(tempF));
-    /*
-    display.setFont(&FreeSans12pt7b);
-    display.setCursor(xLeftMargin+45,130);
-    display.print("F");
-    */
-    display.drawBitmap(xLeftMargin+42,104,epd_bitmap_temperatureF_icon_sm,20,28,EPD_BLACK);
+    display.drawBitmap(xLeftMargin+42,ytemp-21,epd_bitmap_temperatureF_icon_sm,20,28,EPD_BLACK);
   }
   else {
-    display.setCursor(xLeftMargin,130);
+    display.setCursor(xLeftMargin,ytemp);
     display.print(String(tempF));
     display.setFont(&FreeSans12pt7b);
-    display.setCursor(xLeftMargin+65,130);
+    display.setCursor(xLeftMargin+65,ytemp);
     display.print("F"); 
   }
-  // display Fahrenheit symbol
-  // move the cursor to raise the F indicator
-  //display.setCursor(x,y);
-  // display.setFont(&meteocons16pt7b);
-  // display.print("+");
 
   // Indoor humidity
   display.setFont(&FreeSans18pt7b);
-  display.setCursor(display.width()/2, 130);
+  display.setCursor(display.width()/2, ytemp);
   display.print(String((int)(sensorData.ambientHumidity + 0.5)));
-  /*
-  display.setFont(&FreeSans12pt7b);
-  display.setCursor(xLeftMargin+45,155);
-  display.print("%RH");
-  */
-  // display.drawLine(xLeftMargin+45,131,xLeftMargin+70,131,EPD_BLACK);
-  // display.drawLine(xLeftMargin+45,155,xLeftMargin+70,155,EPD_BLACK);
-  display.drawBitmap(display.width()/2+42,104,epd_bitmap_humidity_icon_sm4,20,28,EPD_BLACK);
-
-#endif
+  display.drawBitmap(display.width()/2+42,ytemp-21,epd_bitmap_humidity_icon_sm4,20,28,EPD_BLACK);
 
   // status message
   display.setFont();  // resets to system default monospace font
-  display.setCursor(5, (display.height() - 9));
+  display.setCursor(5, yMessage);
   display.print(messageText);
 
   display.display();
@@ -359,8 +343,7 @@ void batteryReadVoltage()
   }
   if (batteryVoltageAvailable) 
   {
-    debugMessage("Battery voltage: " + String(hardwareData.batteryVoltage) + " v");
-    debugMessage("Battery percentage: " + String(hardwareData.batteryPercent) + " %");
+    debugMessage(String("Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + " %");
   }
 }
 
@@ -381,6 +364,52 @@ void screenBatteryStatus()
     display.drawRect((display.width() - barWidth - 8), 5, barWidth, barHeight, EPD_BLACK);
     debugMessage("battery status drawn to screen");
   }
+}
+
+void screenSparkLines(int xStart, int yStart, int xWidth, int yHeight)
+{
+  // load test CO2 (if needed)
+  //sparkLineTestValues(co2MaxStoredSamples);
+
+  uint16_t co2Min, co2Max = co2Samples[0];
+  // # of pixels between each samples x and y coordinates
+  int xPixelStep, yPixelStep;
+
+  int sparkLineX[co2MaxStoredSamples], sparkLineY[co2MaxStoredSamples];
+
+  // horizontal distance (pixels) between each displayed co2 value
+  xPixelStep = (xWidth / (co2MaxStoredSamples - 1));
+
+  // determine min/max of CO2 samples
+  // could use recursive function but co2MaxStoredSamples should always be relatively small
+  for(int i=0;i<co2MaxStoredSamples;i++)
+  {
+    if(co2Samples[i] > co2Max) co2Max = co2Samples[i];
+    if(co2Samples[i] < co2Min) co2Min = co2Samples[i];
+  }
+  debugMessage(String("Max CO2 in stored sample range is ") + co2Max);
+  debugMessage(String("Min CO2 in stored sample range is ") + co2Min);
+ 
+  // vertical distance (pixels) between each displayed co2 value
+  yPixelStep = ((co2Max - co2Min) / yHeight);
+
+  // sparkline border box (if needed)
+  //display.drawRect(xLeftMargin,ySparkline, xRightMargin,sparklineHeight, EPD_BLACK);
+
+  // determine sparkline x,y values
+  for(int i=0;i<co2MaxStoredSamples;i++)
+  {
+    sparkLineX[i] = (xStart + (i * xPixelStep));
+    sparkLineY[i] = ((yStart + yHeight) - int((co2Samples[i]-co2Min) / yPixelStep));
+    // draw/extend sparkline after first value is generated
+    if (i != 0)
+      display.drawLine(sparkLineX[i-1],sparkLineY[i-1],sparkLineX[i],sparkLineY[i],EPD_BLACK);  
+  }
+  for (int i=0;i<co2MaxStoredSamples;i++)
+  {
+    debugMessage(String("X,Y coordinates for CO2 sample ") + i + " is " + sparkLineX[i] + "," + sparkLineY[i]);
+  }
+    debugMessage("sparkline drawn to screen");
 }
 
 void screenWiFiStatus() 
@@ -411,6 +440,7 @@ void screenWiFiStatus()
     {
       debugMessage("RSSI out of expected range");
     }
+    debugMessage("wifi meter drawn to screen");
   }
 }
 
@@ -450,7 +480,7 @@ int readSensor()
   char errorMessage[256];
 
   screenAlert("CO2 check");
-  for (int loop=0; loop<READS_PER_SAMPLE; loop++)
+  for (int loop=1; loop<=READS_PER_SAMPLE; loop++)
   {
     // minimum time between SCD40 reads
     delay(5000);
@@ -469,7 +499,7 @@ int readSensor()
     }
     //convert C to F for temp
     sensorData.ambientTempF = (sensorData.ambientTempF * 1.8) + 32;
-    debugMessage(String("SCD40 read ") + loop + "of 5: " + sensorData.ambientTempF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm");
+    debugMessage(String("SCD40 read ") + loop + " of 5: " + sensorData.ambientTempF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm");
   }
   return 1;
 }
@@ -562,4 +592,93 @@ void disableInternalPower(int deepSleepTime)
   debugMessage(String("Going to sleep for ") + (deepSleepTime) + " second(s)");
   esp_sleep_enable_timer_wakeup(deepSleepTime*1000000); // ESP microsecond modifier
   esp_deep_sleep_start();
+}
+
+void sparkLineTestValues(int sampleSetSize)
+// generates test data to exercise the screenSparkLine function
+{
+    // generate test data
+  for(int i=0;i<sampleSetSize;i++)
+  {
+    // standard range for indoor CO2 values
+    co2Samples[i]=random(600,2400);
+  }
+}
+
+int nvStorageRead()
+{
+  int storedCounter;
+
+  nvStorage.begin("rco2", false);
+  storedCounter = nvStorage.getInt("counter", -1);
+  // reset the counter if needed
+  if (storedCounter == (co2MaxStoredSamples-1))
+  {
+    storedCounter = -1;
+  }
+  debugMessage(String("Retrieved CO2 sample pointer is: ") + storedCounter);
+  // get previously stored values. If they don't exist, create them as 400 (CO2 floor)
+  co2Samples[0] = nvStorage.getLong("co2Sample0", 400);
+  co2Samples[1] = nvStorage.getLong("co2Sample1", 400);
+  co2Samples[2] = nvStorage.getLong("co2Sample2", 400);
+  co2Samples[3] = nvStorage.getLong("co2Sample3", 400);
+  co2Samples[4] = nvStorage.getLong("co2Sample4", 400);
+  co2Samples[5] = nvStorage.getLong("co2Sample5", 400);
+  co2Samples[6] = nvStorage.getLong("co2Sample6", 400);
+  co2Samples[7] = nvStorage.getLong("co2Sample7", 400);
+  co2Samples[8] = nvStorage.getLong("co2Sample8", 400);
+  co2Samples[9] = nvStorage.getLong("co2Sample9", 400);
+  for (int i=0;i<co2MaxStoredSamples;i++)
+    debugMessage(String("Retrieved CO2 sample ") + i + " is " + co2Samples[i]);
+  return storedCounter;
+}
+
+void nvStorageWrite(int storedCounter)
+{
+  nvStorage.putInt("counter", storedCounter);
+  debugMessage(String("CO2 sample storage pointer stored as: ") + storedCounter);
+  switch (storedCounter){
+  case 0:
+    nvStorage.putLong("co2Sample0",sensorData.ambientCO2);
+    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
+    break;
+  case 1:
+    nvStorage.putLong("co2Sample1",sensorData.ambientCO2);
+    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
+    break;
+  case 2:
+    nvStorage.putLong("co2Sample2",sensorData.ambientCO2);
+    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
+    break;
+  case 3:
+    nvStorage.putLong("co2Sample3",sensorData.ambientCO2);
+    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
+    break;
+  case 4:
+    nvStorage.putLong("co2Sample4",sensorData.ambientCO2);
+    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
+    break;
+  case 5:
+    nvStorage.putLong("co2Sample5",sensorData.ambientCO2);
+    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
+    break;
+  case 6:
+    nvStorage.putLong("co2Sample6",sensorData.ambientCO2);
+    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
+    break;
+  case 7:
+    nvStorage.putLong("co2Sample7",sensorData.ambientCO2);
+    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
+    break;
+  case 8:
+    nvStorage.putLong("co2Sample8",sensorData.ambientCO2);
+    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
+    break;
+  case 9:
+    nvStorage.putLong("co2Sample9",sensorData.ambientCO2);
+    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
+    break;
+  default:
+    debugMessage("Something is wrong with storedCounter?!");
+  }
 }

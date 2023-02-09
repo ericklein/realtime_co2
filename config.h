@@ -7,9 +7,9 @@
 
 // Step 1: Set conditional compile flags
 #define DEBUG 	// Output to serial port
-#define WIFI   	// use WiFi
-#define MQTT 		// log sensor data to M/QTT broker
-#define INFLUX	// Log data to InfluxDB server
+//#define WIFI   	// use WiFi
+//#define MQTT 		// log sensor data to M/QTT broker
+//#define INFLUX	// Log data to InfluxDB server
 
 // Step 2: Set battery size if applicable
 // based on a settings curve in the LC709203F datasheet
@@ -44,9 +44,11 @@
 	#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
 #endif
 
-// For the Adafruit 1.5" Monochrome EPD, rotation 1 orients the display so the wiring is
-// at the top.  A rotation of 3 flips it so the wiring is at the bottom.
-#define DISPLAY_ROTATION 1
+// Adafruit 1.5" mono EPD (#4196) 
+// rotation 1 orients the display so the wiring is at the top
+// rotation of 3 flips it so the wiring is at the bottom
+// 200x200 resolution
+const int DISPLAY_ROTATION = 3;
 
 // SCD40 sample timing
 #ifdef DEBUG
@@ -58,6 +60,9 @@
 	#define READS_PER_SAMPLE	5
 	#define SAMPLE_INTERVAL 	180
 #endif
+
+// nvStorageRead and nvStorageWrite currently don't work if >10
+const int co2MaxStoredSamples = 10;
 
 // Sleep time in seconds if hardware error occurs
 #define HARDWARE_ERROR_INTERVAL 10
