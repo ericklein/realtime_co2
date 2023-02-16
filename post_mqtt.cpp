@@ -11,6 +11,11 @@ extern AQ_Network aq_network;
 // Shared helper function
 extern void debugMessage(String messageText);
 
+#ifdef HASSIO_MQTT
+  extern void hassio_mqtt_setup();
+  extern void hassio_mqtt_publish(uint16_t co2, float tempF, float humidity);
+#endif
+
 // Status variables shared across various functions
 extern bool batteryVoltageAvailable;
 extern bool internetAvailable;
@@ -71,7 +76,7 @@ extern bool internetAvailable;
     if (batteryVoltageAvailable)
     {
       //Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC5, MQTT_QOS_1); // if problematic, remove QOS parameter
-      Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC5);
+      Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_BATTV);
       mqttConnect();
 
       // publish battery voltage
@@ -82,7 +87,7 @@ extern bool internetAvailable;
       }
       else
       {
-        debugMessage("MQTT publish: Battery Percent failed");
+        debugMessage("MQTT publish: Battery Voltage failed");
       }
       aq_mqtt.disconnect(); 
     }
@@ -95,7 +100,7 @@ extern bool internetAvailable;
     if (internetAvailable)
     {
       // Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC6, MQTT_QOS_1); // if problematic, remove QOS parameter
-      Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC6);
+      Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_RSSI);
       mqttConnect();
 
       if (rssiLevelPub.publish(rssi))
@@ -118,9 +123,9 @@ extern bool internetAvailable;
     // Adafruit_MQTT_Publish tempPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC1, MQTT_QOS_1); // if problematic, remove QOS parameter
     // Adafruit_MQTT_Publish humidityPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC2, MQTT_QOS_1);
     // Adafruit_MQTT_Publish co2Pub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC3, MQTT_QOS_1);
-    Adafruit_MQTT_Publish tempPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC1);
-    Adafruit_MQTT_Publish humidityPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC2);
-    Adafruit_MQTT_Publish co2Pub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TOPIC3);   
+    Adafruit_MQTT_Publish tempPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TEMPF);
+    Adafruit_MQTT_Publish humidityPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_HUMIDITY);
+    Adafruit_MQTT_Publish co2Pub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_CO2);   
     int result = 1;
     
     mqttConnect();
@@ -152,6 +157,15 @@ extern bool internetAvailable;
       debugMessage("MQTT publish: CO2 failed");
       result = 0;
     }
+
+    #ifdef HASSIO_MQTT
+      debugMessage("Establishing MQTT for Home Assistant");
+      // Either configure sensors in Home Assistant's configuration.yaml file
+      // directly or attempt to do it via MQTT auto-discovery
+      // hassio_mqtt_setup();  // Config for MQTT auto-discovery
+      hassio_mqtt_publish(co2,tempF,humidity);
+    #endif
+
     aq_mqtt.disconnect();
     return(result);
   }

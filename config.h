@@ -9,6 +9,7 @@
 #define DEBUG 	// Output to serial port
 //#define WIFI   	// use WiFi
 //#define MQTT 		// log sensor data to M/QTT broker
+//#define HASSIO_MQTT  // And, if MQTT enabled, with Home Assiatant too?
 //#define INFLUX	// Log data to InfluxDB server
 
 // Step 2: Set battery size if applicable
@@ -48,7 +49,7 @@
 // rotation 1 orients the display so the wiring is at the top
 // rotation of 3 flips it so the wiring is at the bottom
 // 200x200 resolution
-const int DISPLAY_ROTATION = 3;
+#define DISPLAY_ROTATION 3
 
 // SCD40 sample timing
 #ifdef DEBUG
@@ -94,11 +95,19 @@ const int   daylightOffset_sec = 0;
 	// e.g. #define MQTT_PUB_TOPIC1		"sircoolio/feeds/pocket-office.temperature"
 
 	// structure: site/room/device/data	
-	#define MQTT_PUB_TOPIC1		"7828/demo/rco2/temperature"
-	#define MQTT_PUB_TOPIC2		"7828/demo/rco2/humidity"
-	#define MQTT_PUB_TOPIC3		"7828/demo/rco2/co2"
-	#define MQTT_PUB_TOPIC5		"7828/demo/rco2/battery-voltage"
-	#define MQTT_PUB_TOPIC6		"7828/demo/rco2/rssi"
+	#define MQTT_PUB_TEMPF		 "7828/demo/rco2/temperature"
+	#define MQTT_PUB_HUMIDITY  "7828/demo/rco2/humidity"
+	#define MQTT_PUB_CO2	     "7828/demo/rco2/co2"
+	#define MQTT_PUB_BATTV		 "7828/demo/rco2/battery-voltage"
+	#define MQTT_PUB_RSSI	     "7828/demo/rco2/rssi"=
+
+  // Additional (optional) topics if integrating with Home Assistant
+  #ifdef HASSIO_MQTT
+    // Home Assistant entity configuration & state (values) topics. NOTE: MUST MATCH value
+    // used in Home Assistant MQTT configuration file (configuration.yaml). See 
+    // hassio_mqtt.cpp for details.
+    #define MQTT_HASSIO_STATE   "homeassistant/sensor/rco2-1/state"
+  #endif
 #endif
 
 #ifdef INFLUX

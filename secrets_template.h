@@ -9,8 +9,10 @@
 // #define SITE_ALTITUDE	263 // calibrate SCD40, in meters above sea level; example is Pasadena, CA
 
 // #ifdef MQTT
+//  #define MQTT BROKER    "mqtt.hostname.local or IP address"
 // 	#define MQTT_PORT  			port_number	// use 8883 for SSL
-// 	#define MQTT_USER			"key_value"
+// 	#define MQTT_USER			 "key_value"
+//  #define MQTT_PASSWORD  "key_value"
 // #endif
 
 // #ifdef INFLUX
