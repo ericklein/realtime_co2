@@ -78,7 +78,7 @@ boolean post_influx(uint16_t co2, float tempF, float humidity, float battery_v, 
     // Connected, so store sensor values into timeseries data point
     dbenvdata.clearFields();
     // Report sensor readings
-    dbenvdata.addField("temperature", tempF);
+    dbenvdata.addField("tempF", tempF);
     dbenvdata.addField("humidity", humidity);
     dbenvdata.addField("co2", co2);
     debugMessage("Writing: " + dbclient.pointToLineProtocol(dbenvdata));

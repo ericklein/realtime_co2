@@ -589,7 +589,7 @@ void disableInternalPower(int deepSleepTime)
     debugMessage("disabled Adafruit Feather ESP32S2 I2C power");
   #endif
 
-  debugMessage(String("Going to sleep for ") + (deepSleepTime) + " second(s)");
+  debugMessage(String("Going to sleep for ") + (deepSleepTime) + " seconds");
   esp_sleep_enable_timer_wakeup(deepSleepTime*1000000); // ESP microsecond modifier
   esp_deep_sleep_start();
 }
@@ -617,68 +617,25 @@ int nvStorageRead()
     storedCounter = -1;
   }
   debugMessage(String("Retrieved CO2 sample pointer is: ") + storedCounter);
-  // get previously stored values. If they don't exist, create them as 400 (CO2 floor)
-  co2Samples[0] = nvStorage.getLong("co2Sample0", 400);
-  co2Samples[1] = nvStorage.getLong("co2Sample1", 400);
-  co2Samples[2] = nvStorage.getLong("co2Sample2", 400);
-  co2Samples[3] = nvStorage.getLong("co2Sample3", 400);
-  co2Samples[4] = nvStorage.getLong("co2Sample4", 400);
-  co2Samples[5] = nvStorage.getLong("co2Sample5", 400);
-  co2Samples[6] = nvStorage.getLong("co2Sample6", 400);
-  co2Samples[7] = nvStorage.getLong("co2Sample7", 400);
-  co2Samples[8] = nvStorage.getLong("co2Sample8", 400);
-  co2Samples[9] = nvStorage.getLong("co2Sample9", 400);
-  for (int i=0;i<co2MaxStoredSamples;i++)
-    debugMessage(String("Retrieved CO2 sample ") + i + " is " + co2Samples[i]);
+
+  String nvStoreBaseName;
+  for (int i=0; i<co2MaxStoredSamples; i++)
+  {
+    nvStoreBaseName = "co2Sample" + String(i);
+    //debugMessage(nvStoreBaseName);
+    // get previously stored values. If they don't exist, create them as 400 (CO2 floor)
+    co2Samples[i] = nvStorage.getLong(nvStoreBaseName.c_str(),400);
+    debugMessage(String(nvStoreBaseName) + " retrieved from nv storage is " + co2Samples[i]);
+  }
   return storedCounter;
 }
 
 void nvStorageWrite(int storedCounter)
+// Stores current CO2 value into nv storage in a FIFO rotation
+// FIX: validate storedCounter with 0 and co2MaxStoredSamples
 {
   nvStorage.putInt("counter", storedCounter);
-  debugMessage(String("CO2 sample storage pointer stored as: ") + storedCounter);
-  switch (storedCounter){
-  case 0:
-    nvStorage.putLong("co2Sample0",sensorData.ambientCO2);
-    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
-    break;
-  case 1:
-    nvStorage.putLong("co2Sample1",sensorData.ambientCO2);
-    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
-    break;
-  case 2:
-    nvStorage.putLong("co2Sample2",sensorData.ambientCO2);
-    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
-    break;
-  case 3:
-    nvStorage.putLong("co2Sample3",sensorData.ambientCO2);
-    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
-    break;
-  case 4:
-    nvStorage.putLong("co2Sample4",sensorData.ambientCO2);
-    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
-    break;
-  case 5:
-    nvStorage.putLong("co2Sample5",sensorData.ambientCO2);
-    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
-    break;
-  case 6:
-    nvStorage.putLong("co2Sample6",sensorData.ambientCO2);
-    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
-    break;
-  case 7:
-    nvStorage.putLong("co2Sample7",sensorData.ambientCO2);
-    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
-    break;
-  case 8:
-    nvStorage.putLong("co2Sample8",sensorData.ambientCO2);
-    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
-    break;
-  case 9:
-    nvStorage.putLong("co2Sample9",sensorData.ambientCO2);
-    debugMessage(String("CO2 sample ") + storedCounter + "stored as: " + sensorData.ambientCO2);
-    break;
-  default:
-    debugMessage("Something is wrong with storedCounter?!");
-  }
+  String nvStoreBaseName = "co2Sample" + String(storedCounter);
+  nvStorage.putLong(nvStoreBaseName.c_str(),sensorData.ambientCO2);
+  debugMessage(String(nvStoreBaseName) + " stored in nv storage as " + sensorData.ambientCO2);
 }
