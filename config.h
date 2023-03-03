@@ -7,10 +7,10 @@
 
 // Step 1: Set conditional compile flags
 #define DEBUG 	// Output to serial port
-// #define WIFI   	// use WiFi
-//#define MQTT 		// log sensor data to M/QTT broker
+#define WIFI   	// use WiFi
+#define MQTT 		// log sensor data to M/QTT broker
 //#define HASSIO_MQTT  // And, if MQTT enabled, with Home Assistant too?
-// #define INFLUX	// Log data to InfluxDB server
+#define INFLUX	// Log data to InfluxDB server
 
 // Step 2: Set battery size if applicable
 // based on a settings curve in the LC709203F datasheet
@@ -103,7 +103,7 @@ const int   daylightOffset_sec = 0;
 	#define MQTT_PUB_HUMIDITY  "7828/demo/rco2/humidity"
 	#define MQTT_PUB_CO2	     "7828/demo/rco2/co2"
 	#define MQTT_PUB_BATTV		 "7828/demo/rco2/battery-voltage"
-	#define MQTT_PUB_RSSI	     "7828/demo/rco2/rssi"=
+	#define MQTT_PUB_RSSI	     "7828/demo/rco2/rssi"
 
   // Additional (optional) topics if integrating with Home Assistant
   #ifdef HASSIO_MQTT
