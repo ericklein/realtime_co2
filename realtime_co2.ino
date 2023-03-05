@@ -154,8 +154,9 @@ void setup()
   networkConnect();
 
   String upd_flags = "";  // Indicates whether/which external data services were updated
-  if (hardwareData.rssi!=0) 
+  if (hardwareData.rssi!=0)
   {
+    networkGetTime();
     // Update external data services
     #ifdef MQTT
       if ((mqttSensorTempFUpdate(sensorData.ambientTempF)) && (mqttSensorHumidityUpdate(sensorData.ambientHumidity)) && (mqttSensorCO2Update(sensorData.ambientCO2)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage)))
@@ -311,7 +312,7 @@ void batteryReadVoltage()
   }
   if (hardwareData.batteryVoltage!=0) 
   {
-    debugMessage(String("Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + " %");
+    debugMessage(String("Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + "%");
   }
 }
 
@@ -330,7 +331,7 @@ void screenBatteryStatus()
     display.fillRect((display.width() - barWidth - 8), 5, (int((hardwareData.batteryPercent / 100) * barWidth)), barHeight, EPD_GRAY);
     // battery border
     display.drawRect((display.width() - barWidth - 8), 5, barWidth, barHeight, EPD_BLACK);
-    debugMessage("battery status drawn to screen");
+    debugMessage(String("battery status drawn to screen as ") + hardwareData.batteryPercent + "%" );
   }
 }
 
@@ -402,13 +403,12 @@ void screenWiFiStatus()
       {
         display.fillRect(((display.width() - barStartingXModifier) + (b * barSpacingMultipler)), ((display.height()) - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, EPD_BLACK);
       }
-      debugMessage(String("WiFi signal strength on screen as ") + barCount +" bars");
+      debugMessage(String("WiFi signal strength drawn to screen as ") + barCount +" bars");
     }
     else
     {
       debugMessage("RSSI out of expected range");
     }
-    debugMessage("wifi meter drawn to screen");
   }
 }
 
@@ -639,6 +639,12 @@ void networkDisconnect()
   client.stop();
   debugMessage("Disconnected from WiFi network as requested");
 #endif
+}
+
+void networkGetTime()
+{
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);    
+  debugMessage("NTP time: " + dateTimeString());
 }
 
 // Converts system time into human readable strings. Use NTP service

@@ -60,7 +60,7 @@ extern void debugMessage(String messageText);
     bool result = false;
     if (batteryVoltage > 0)
     {
-      //Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_BATTVOLT, MQTT_QOS_1); // if problematic, remove QOS parameter
+      // add ,MQTT_QOS_1); if problematic, remove QOS parameter
       Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_BATTVOLT);
       mqttConnect();
 
@@ -83,7 +83,7 @@ extern void debugMessage(String messageText);
     int result = 0;
     if (rssi!=0)
     {
-      // Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_RSSI, MQTT_QOS_1); // if problematic, remove QOS parameter
+      // add ,MQTT_QOS_1); if problematic, remove QOS parameter
       Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_RSSI);
       
       mqttConnect();
@@ -105,7 +105,7 @@ extern void debugMessage(String messageText);
   // Publishes temperature data to MQTT broker
   {
     bool result = false;
-    // Adafruit_MQTT_Publish tempPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TEMPF, MQTT_QOS_1); // if problematic, remove QOS parameter
+    // add ,MQTT_QOS_1); if problematic, remove QOS parameter
     Adafruit_MQTT_Publish tempPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TEMPF);
     
     mqttConnect();
@@ -126,7 +126,7 @@ extern void debugMessage(String messageText);
   // Publishes humidity data to MQTT broker
   {
     bool result = false;
-    // Adafruit_MQTT_Publish humidityPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_HUMIDITY, MQTT_QOS_1);
+    // add ,MQTT_QOS_1); if problematic, remove QOS parameter
     Adafruit_MQTT_Publish humidityPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_HUMIDITY);
     
     mqttConnect();
@@ -147,7 +147,7 @@ extern void debugMessage(String messageText);
   // Publishes CO2 data to MQTT broker
   {
     bool result = false;
-    // Adafruit_MQTT_Publish co2Pub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_CO2, MQTT_QOS_1);
+    // add ,MQTT_QOS_1); if problematic, remove QOS parameter
     Adafruit_MQTT_Publish co2Pub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_CO2);   
     
     mqttConnect();
