@@ -35,21 +35,18 @@ typedef struct
 hdweData hardwareData;
 
 #ifdef WIFI
-  // initialize WiFi support
-  // ESP32 WiFi
-  #include <WiFi.h>
 
-  // ESP8266 WiFi
-  // #include <ESP8266WiFi.h>
-
-  // Use WiFiClient class to create TCP connections and talk to hosts
-  WiFiClient client;
+  #if defined(ESP8266)
+    #include <ESP8266WiFi.h>
+  #elif defined(ESP32)
+    #include <WiFi.h>
+  #endif
 
   // NTP setup
   #include "time.h"
 
-  // Generalized access to HTTP services
-  #include <HTTPClient.h>
+  // Generalized access to HTTP services, Influx library invokes this itself
+  // #include <HTTPClient.h>
 #endif
 
 // initialize scd40 environment sensor
@@ -91,6 +88,10 @@ const int sparklineHeight = 40;
 #ifdef MQTT
   // MQTT interface depends on the underlying network client object, which is defined and
   // managed here (so needs to be defined here).
+
+  // Use WiFiClient class to create TCP connections and talk to hosts
+  WiFiClient client;
+
   #include <Adafruit_MQTT.h>
   #include <Adafruit_MQTT_Client.h>
   Adafruit_MQTT_Client aq_mqtt(&client, MQTT_BROKER, MQTT_PORT, CLIENT_ID, MQTT_USER, MQTT_PASS);
@@ -128,7 +129,7 @@ void setup()
 
   // Initialize environmental sensor
   if (!initSensor()) {
-    debugMessage("Environment sensor failed to initialize, going to sleep");
+    debugMessage("Environment sensor failed to initialize");
     screenAlert("NO SCD40");
     // This error often occurs right after a firmware flash and reset.
     // Hardware deep sleep typically resolves it, so quickly cycle the hardware
@@ -137,7 +138,7 @@ void setup()
 
   // Environmental sensor available, so fetch values
   if (!readSensor()) {
-    debugMessage("SCD40 returned no/bad data, going to sleep");
+    debugMessage("SCD40 returned no/bad data");
     screenAlert("SCD40 no/bad data");
     disableInternalPower(HARDWARE_ERROR_INTERVAL);
   }
@@ -298,16 +299,14 @@ void batteryReadVoltage()
   } 
   else
   {
-  // use supported boards to read voltage
+    // use supported boards to read voltage
     #if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
       pinMode(VBATPIN,INPUT);
-      #define BATTV_MAX           4.2     // maximum voltage of battery
-      #define BATTV_MIN           3.2     // what we regard as an empty battery
 
       // assumes default ESP32 analogReadResolution (4095)
       // the 1.05 is a fudge factor original author used to align reading with multimeter
       hardwareData.batteryVoltage = ((float)analogRead(VBATPIN) / 4095) * 3.3 * 2 * 1.05;
-      hardwareData.batteryPercent = (uint8_t)(((hardwareData.batteryVoltage - BATTV_MIN) / (BATTV_MAX - BATTV_MIN)) * 100);
+      hardwareData.batteryPercent = (uint8_t)(((hardwareData.batteryVoltage - batteryMinVoltage) / (batteryMaxVoltage - batteryMinVoltage)) * 100);
     #endif
   }
   if (hardwareData.batteryVoltage!=0) 
@@ -412,64 +411,64 @@ void screenWiFiStatus()
   }
 }
 
-int initSensor() {
-  uint16_t error;
+bool initSensor() {
   char errorMessage[256];
 
-// Handle two ESP32 I2C ports
-#if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
-  Wire1.begin();
-  envSensor.begin(Wire1);
-#else
-  Wire.begin();
-  envSensor.begin(Wire);
-#endif
+  #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
+    // these boards have two I2C ports so we have to initialize the appropriate port
+    Wire1.begin();
+    envSensor.begin(Wire1);
+  #else
+    // only one I2C port
+    Wire.begin();
+    envSensor.begin(Wire);
+  #endif
 
   envSensor.wakeUp();
   envSensor.setSensorAltitude(SITE_ALTITUDE);  // optimizes CO2 reading
 
-  error = envSensor.startPeriodicMeasurement();
+  uint16_t error = envSensor.startPeriodicMeasurement();
   if (error) {
     // Failed to initialize SCD40
     errorToString(error, errorMessage, 256);
     debugMessage(String(errorMessage) + " executing SCD40 startPeriodicMeasurement()");
-    return 0;
-  } else {
-    debugMessage("SCD40 initialized, waiting 5 sec for first measurement");
+    return false;
+  } 
+  else
+  {
+    debugMessage("SCD40 initialized and now warming up for 5 seconds before reading");
     delay(5000);  // Give SCD40 time to warm up
-    return 1;     // success
+    return true;     // success
   }
 }
 
-int readSensor()
+bool readSensor()
 // reads SCD40 READS_PER_SAMPLE times then stores last read
 {
-  uint16_t error;
   char errorMessage[256];
 
   screenAlert("CO2 check");
   for (int loop=1; loop<=READS_PER_SAMPLE; loop++)
   {
-    // minimum time between SCD40 reads
+    // SCD40 datasheet suggests 5 second delay between SCD40 reads
     delay(5000);
-    // read and store data if successful
-    error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity);
+    uint16_t error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity);
     // handle SCD40 errors
     if (error) {
       errorToString(error, errorMessage, 256);
       debugMessage(String(errorMessage) + " error during SCD4X read");
-      return 0;
+      return false;
     }
     if (sensorData.ambientCO2<400 || sensorData.ambientCO2>6000)
     {
       debugMessage("SCD40 CO2 reading out of range");
-      return 0;
+      return false;
     }
     //convert C to F for temp
     sensorData.ambientTempF = (sensorData.ambientTempF * 1.8) + 32;
-    debugMessage(String("SCD40 read ") + loop + " of 5: " + sensorData.ambientTempF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm");
+    debugMessage(String("SCD40 read ") + loop + " of " + READS_PER_SAMPLE + " : " + sensorData.ambientTempF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm");
   }
-  return 1;
+  return true;
 }
 
 void enableInternalPower()
@@ -519,21 +518,26 @@ void enableInternalPower()
 void disableInternalPower(int deepSleepTime)
 // Powers down hardware in preparation for board deep sleep
 {
-  display.powerDown();
-  digitalWrite(EPD_RESET, LOW);  // hardware power down mode
-  networkDisconnect();
-
-  uint16_t error;
   char errorMessage[256];
 
-  // stop potentially previously started measurement
-  error = envSensor.stopPeriodicMeasurement();
+  debugMessage("Starting power down activities");
+  // power down epd
+  display.powerDown();
+  digitalWrite(EPD_RESET, LOW);  // hardware power down mode
+  debugMessage("powered down epd");
+
+  networkDisconnect();
+
+  // power down SCD40
+
+  // stops potentially started measurement then powers down SCD40
+  uint16_t error = envSensor.stopPeriodicMeasurement();
   if (error) {
-    Serial.print("Error trying to execute stopPeriodicMeasurement(): ");
     errorToString(error, errorMessage, 256);
-    debugMessage(errorMessage);
+    debugMessage(String(errorMessage) + " executing SCD40 stopPeriodicMeasurement()");
   }
   envSensor.powerDown();
+  debugMessage("SCD40 powered down");
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
     // Turn off the I2C power
@@ -557,8 +561,8 @@ void disableInternalPower(int deepSleepTime)
     debugMessage("disabled Adafruit Feather ESP32S2 I2C power");
   #endif
 
-  debugMessage(String("Going to sleep for ") + (deepSleepTime) + " seconds");
   esp_sleep_enable_timer_wakeup(deepSleepTime*1000000); // ESP microsecond modifier
+  debugMessage(String("Going into ESP32 deep sleep for ") + (deepSleepTime) + " seconds");
   esp_deep_sleep_start();
 }
 
@@ -636,8 +640,8 @@ bool networkConnect()
 void networkDisconnect()
 {
 #ifdef WIFI
-  client.stop();
-  debugMessage("Disconnected from WiFi network as requested");
+  WiFi.disconnect();
+  debugMessage("Disconnected from WiFi network");
 #endif
 }
 
