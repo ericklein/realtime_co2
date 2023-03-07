@@ -114,25 +114,25 @@ void setup()
   hardwareData.batteryVoltage = 0;  // 0 = no battery attached
   hardwareData.rssi = 0;            // 0 = no WiFi 
 
-  enableInternalPower();
+  powerEnable();
 
   display.begin(THINKINK_MONO);
   display.setRotation(DISPLAY_ROTATION);
 
   // Initialize environmental sensor
-  if (!initSensor()) {
+  if (!sensorInit()) {
     debugMessage("Environment sensor failed to initialize");
     screenAlert("NO SCD40");
     // This error often occurs right after a firmware flash and reset.
     // Hardware deep sleep typically resolves it, so quickly cycle the hardware
-    disableInternalPower(HARDWARE_ERROR_INTERVAL);
+    powerDisable(HARDWARE_ERROR_INTERVAL);
   }
 
   // Environmental sensor available, so fetch values
-  if (!readSensor()) {
+  if (!sensorRead()) {
     debugMessage("SCD40 returned no/bad data");
     screenAlert("SCD40 no/bad data");
-    disableInternalPower(HARDWARE_ERROR_INTERVAL);
+    powerDisable(HARDWARE_ERROR_INTERVAL);
   }
 
   // retrieve the historical CO2 sample data
@@ -186,7 +186,7 @@ void setup()
       screenInfo("");
     #endif
   }
-  disableInternalPower(SAMPLE_INTERVAL);
+  powerDisable(SAMPLE_INTERVAL);
 }
 
 void loop() {}
@@ -403,7 +403,7 @@ void screenWiFiStatus()
   }
 }
 
-bool initSensor() {
+bool sensorInit() {
   char errorMessage[256];
 
   #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
@@ -428,13 +428,12 @@ bool initSensor() {
   } 
   else
   {
-    debugMessage("SCD40 initialized and now warming up for 5 seconds before reading");
-    delay(5000);  // Give SCD40 time to warm up
-    return true;     // success
+    debugMessage("SCD40 initialized");
+    return true;
   }
 }
 
-bool readSensor()
+bool sensorRead()
 // reads SCD40 READS_PER_SAMPLE times then stores last read
 {
   char errorMessage[256];
@@ -463,7 +462,7 @@ bool readSensor()
   return true;
 }
 
-void enableInternalPower()
+void powerEnable()
 {
   // Handle two ESP32 I2C ports
   #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
@@ -507,7 +506,7 @@ void enableInternalPower()
   #endif
 }
 
-void disableInternalPower(int deepSleepTime)
+void powerDisable(int deepSleepTime)
 // Powers down hardware in preparation for board deep sleep
 {
   char errorMessage[256];
