@@ -23,10 +23,12 @@
 // #define BATTERY_APA 0x32 // 2500mAH
 // #define BATTERY_APA 0x36 // 3000mAH
 
-// Pin config for e-paper display
+const float batteryMaxVoltage	= 4.2; 	// maximum battery voltage
+const float batteryMinVoltage	= 3.2; 	// what we regard as an empty battery
 
+// Pin config for host board
 #if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
-	// Adafruit Feather ESP32 V2
+	// Adafruit 1.5" mono EPD (part#4196)
 	#define EPD_CS      12
 	#define EPD_DC      13
 	#define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
@@ -37,22 +39,8 @@
 	#define VBATPIN A13
 #endif
 
-#if defined (ARDUINO_ADAFRUIT_QTPY_ESP32S2)
-	#define EPD_CS      A3		// A3 = 15
-	#define EPD_DC      A0		// A0 = 26
-	#define SRAM_CS     A1	// A1 = 25, can set to -1 to not use a pin (uses a lot of RAM!)
-	#define EPD_RESET   -1	// can set to -1 and share with chip Reset (can't deep sleep)
-	#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
-
-	// battery pin via Adafruit LiIon Charger BFF Add-On for QT Py, pt#5397 
-	// have to add || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) to batteryReadVoltage() to read VBATPIN
-	//#define VBATPIN 		A2 	// A2 = 27
-#endif
-
-// Adafruit 1.5" mono EPD (#4196) 
 // rotation 1 orients the display so the wiring is at the top
 // rotation of 3 flips it so the wiring is at the bottom
-// 200x200 resolution
 #define DISPLAY_ROTATION 3
 
 // SCD40 sample timing
@@ -99,11 +87,11 @@ const int   daylightOffset_sec = 0;
 	// e.g. #define MQTT_PUB_TOPIC1		"sircoolio/feeds/pocket-office.temperature"
 
 	// structure: site/room/device/data	
-	#define MQTT_PUB_TEMPF		 "7828/demo/rco2/temperature"
-	#define MQTT_PUB_HUMIDITY  "7828/demo/rco2/humidity"
-	#define MQTT_PUB_CO2	     "7828/demo/rco2/co2"
-	#define MQTT_PUB_BATTV		 "7828/demo/rco2/battery-voltage"
-	#define MQTT_PUB_RSSI	     "7828/demo/rco2/rssi"
+	#define MQTT_PUB_TEMPF			"7828/demo/rco2/temperature"
+	#define MQTT_PUB_HUMIDITY		"7828/demo/rco2/humidity"
+	#define MQTT_PUB_CO2				"7828/demo/rco2/co2"
+	#define MQTT_PUB_BATTVOLT		"7828/demo/rco2/battery-voltage"
+	#define MQTT_PUB_RSSI				"7828/demo/rco2/rssi"
 
   // Additional (optional) topics if integrating with Home Assistant
   #ifdef HASSIO_MQTT

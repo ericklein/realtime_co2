@@ -10,10 +10,6 @@
 // private credentials for network, MQTT
 #include "secrets.h"
 
-// Generalized network handling
-#include "aq_network.h"
-AQ_Network aq_network;
-
 // read/write to ESP32 persistent storage
 #include <Preferences.h>
 Preferences nvStorage;
@@ -38,8 +34,16 @@ typedef struct
 } hdweData;
 hdweData hardwareData;
 
-bool batteryVoltageAvailable = false;
-bool internetAvailable = false;
+#ifdef WIFI
+  #if defined(ESP8266)
+    #include <ESP8266WiFi.h>
+  #elif defined(ESP32)
+    #include <WiFi.h>
+  #endif
+
+  // NTP setup
+  #include "time.h"
+#endif
 
 // initialize scd40 environment sensor
 #include <SensirionI2CScd4x.h>
@@ -56,11 +60,11 @@ Adafruit_LC709203F lc;
 #include <Fonts/FreeSans9pt7b.h>
 #include <Fonts/FreeSans12pt7b.h>
 #include <Fonts/FreeSans18pt7b.h>
+
 // Special glyphs for the UI
 #include "glyphs.h"
-//#include <Fonts/FreeSans24pt7b.h>
 
-// 1.54" Monochrome displays with 200x200 pixels and SSD1681 chipset
+// 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
 ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
 // screen layout assists
@@ -73,14 +77,22 @@ const int yMessage = display.height()- 9;
 const int sparklineHeight = 40;
 
 #ifdef INFLUX
-  extern boolean post_influx(uint16_t co2, float tempF, float humidity, float battery_v, int rssi);
+  extern boolean post_influx(uint16_t co2, float tempF, float humidity, float batteryVoltage, int rssi);
 #endif
 
 #ifdef MQTT
-  // extern void mqttConnect();
-  extern int mqttDeviceWiFiUpdate(int rssi);
-  extern int mqttDeviceBatteryUpdate(float cellVoltage);
-  extern int mqttSensorUpdate(uint16_t co2, float tempF, float humidity);
+  // MQTT uses WiFiClient class to create TCP connections
+  WiFiClient client;
+
+  #include <Adafruit_MQTT.h>
+  #include <Adafruit_MQTT_Client.h>
+  Adafruit_MQTT_Client aq_mqtt(&client, MQTT_BROKER, MQTT_PORT, CLIENT_ID, MQTT_USER, MQTT_PASS);
+
+  extern bool mqttDeviceWiFiUpdate(int rssi);
+  extern bool mqttDeviceBatteryUpdate(float batteryVoltage);
+  extern bool mqttSensorTempFUpdate(float tempF);
+  extern bool mqttSensorHumidityUpdate(float humidity);
+  extern bool mqttSensorCO2Update(uint16_t co2);
 #endif
 
 void setup()
@@ -99,25 +111,28 @@ void setup()
     debugMessage("Client ID: " + String(CLIENT_ID));
   #endif
 
-  enableInternalPower();
+  hardwareData.batteryVoltage = 0;  // 0 = no battery attached
+  hardwareData.rssi = 0;            // 0 = no WiFi 
+
+  powerEnable();
 
   display.begin(THINKINK_MONO);
   display.setRotation(DISPLAY_ROTATION);
 
   // Initialize environmental sensor
-  if (!initSensor()) {
-    debugMessage("Environment sensor failed to initialize, going to sleep");
+  if (!sensorInit()) {
+    debugMessage("Environment sensor failed to initialize");
     screenAlert("NO SCD40");
     // This error often occurs right after a firmware flash and reset.
     // Hardware deep sleep typically resolves it, so quickly cycle the hardware
-    disableInternalPower(HARDWARE_ERROR_INTERVAL);
+    powerDisable(HARDWARE_ERROR_INTERVAL);
   }
 
   // Environmental sensor available, so fetch values
-  if (!readSensor()) {
-    debugMessage("SCD40 returned no/bad data, going to sleep");
+  if (!sensorRead()) {
+    debugMessage("SCD40 returned no/bad data");
     screenAlert("SCD40 no/bad data");
-    disableInternalPower(HARDWARE_ERROR_INTERVAL);
+    powerDisable(HARDWARE_ERROR_INTERVAL);
   }
 
   // retrieve the historical CO2 sample data
@@ -129,38 +144,37 @@ void setup()
   nvStorageWrite(storedCounter);
 
   batteryReadVoltage();
-
-  // Setup network connection specified in config.h
-  internetAvailable = aq_network.networkBegin();
+  networkConnect();
 
   String upd_flags = "";  // Indicates whether/which external data services were updated
-  if (internetAvailable) 
+  if (hardwareData.rssi!=0)
   {
-    hardwareData.rssi = abs(aq_network.getWiFiRSSI());
-
+    networkGetTime();
     // Update external data services
     #ifdef MQTT
-        if ((mqttSensorUpdate(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage))) {
+      if ((mqttSensorTempFUpdate(sensorData.ambientTempF)) && (mqttSensorHumidityUpdate(sensorData.ambientHumidity)) && (mqttSensorCO2Update(sensorData.ambientCO2)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage)))
+      {
           upd_flags += "M";
-        }
+      }
     #endif
 
     #ifdef INFLUX
-        // Returns true if successful
-        if (post_influx(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity, hardwareData.batteryVoltage, hardwareData.rssi)) {
-          upd_flags += "I";
-        }
+      // Returns true if successful
+      if (post_influx(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity, hardwareData.batteryVoltage, hardwareData.rssi))
+      {
+        upd_flags += "I";
+      }
     #endif
 
     if (upd_flags == "") 
     {
       // External data services not updated but we have network time
-      screenInfo(aq_network.dateTimeString());
+      screenInfo(dateTimeString());
     } 
     else 
     {
       // External data services not updated and we have network time
-      screenInfo("[+" + upd_flags + "] " + aq_network.dateTimeString());
+      screenInfo("[+" + upd_flags + "] " + dateTimeString());
     }
   }
   else
@@ -172,7 +186,7 @@ void setup()
       screenInfo("");
     #endif
   }
-  disableInternalPower(SAMPLE_INTERVAL);
+  powerDisable(SAMPLE_INTERVAL);
 }
 
 void loop() {}
@@ -274,76 +288,22 @@ void batteryReadVoltage()
     lc.setPackAPA(BATTERY_APA);
     hardwareData.batteryPercent = lc.cellPercent();
     hardwareData.batteryVoltage = lc.cellVoltage();
-    batteryVoltageAvailable = true;
   } 
   else
   {
-  // use supported boards to read voltage
+    // use supported boards to read voltage
     #if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
       pinMode(VBATPIN,INPUT);
-      #define BATTV_MAX           4.2     // maximum voltage of battery
-      #define BATTV_MIN           3.2     // what we regard as an empty battery
 
       // assumes default ESP32 analogReadResolution (4095)
       // the 1.05 is a fudge factor original author used to align reading with multimeter
       hardwareData.batteryVoltage = ((float)analogRead(VBATPIN) / 4095) * 3.3 * 2 * 1.05;
-      hardwareData.batteryPercent = (uint8_t)(((hardwareData.batteryVoltage - BATTV_MIN) / (BATTV_MAX - BATTV_MIN)) * 100);
-
-      // Adafruit ESP32 V2 power management guide code form https://learn.adafruit.com/adafruit-esp32-feather-v2/power-management-2, which does not work? [logged issue]
-      // hardwareData.batteryVoltage = analogReadMilliVolts(VBATPIN);
-      // hardwareData.batteryVoltage *= 2;    // we divided by 2, so multiply back
-      // hardwareData.batteryVoltage /= 1000; // convert to volts!
-
-      // manual percentage decay map from https://blog.ampow.com/lipo-voltage-chart/
-      // hardwareData.batteryPercent = 100;
-      // if ((hardwareData.batteryVoltage < 4.2) && (hardwareData.batteryVoltage > 4.15))
-      //   hardwareData.batteryPercent = 95;
-      // if ((hardwareData.batteryVoltage < 4.16) && (hardwareData.batteryVoltage > 4.10))
-      //   hardwareData.batteryPercent = 90;
-      // if ((hardwareData.batteryVoltage < 4.11) && (hardwareData.batteryVoltage > 4.07))
-      //   hardwareData.batteryPercent = 85;
-      // if ((hardwareData.batteryVoltage < 4.08) && (hardwareData.batteryVoltage > 4.01))
-      //   hardwareData.batteryPercent = 80;
-      // if ((hardwareData.batteryVoltage < 4.02) && (hardwareData.batteryVoltage > 3.97))
-      //   hardwareData.batteryPercent = 75;
-      // if ((hardwareData.batteryVoltage < 3.98) && (hardwareData.batteryVoltage > 3.94))
-      //   hardwareData.batteryPercent = 70;
-       // if ((hardwareData.batteryVoltage < 3.95) && (hardwareData.batteryVoltage > 3.90))
-      // hardwareData.batteryPercent = 65;
-      //  if ((hardwareData.batteryVoltage < 3.91) && (hardwareData.batteryVoltage > 3.87))
-      //    hardwareData.batteryPercent = 60;
-      //  if ((hardwareData.batteryVoltage < 3.87) && (hardwareData.batteryVoltage > 3.84))
-      //    hardwareData.batteryPercent = 55;
-      //  if (hardwareData.batteryVoltage = 3.84)
-      //    hardwareData.batteryPercent = 50;
-      //  if ((hardwareData.batteryVoltage < 3.84) && (hardwareData.batteryVoltage > 3.81))
-      //    hardwareData.batteryPercent = 45;
-      //  if ((hardwareData.batteryVoltage < 3.82) && (hardwareData.batteryVoltage > 3.79))
-      //    hardwareData.batteryPercent = 40;
-      //  if (hardwareData.batteryVoltage = 3.79)
-      //    hardwareData.batteryPercent = 35;
-      //  if ((hardwareData.batteryVoltage < 3.79) && (hardwareData.batteryVoltage > 3.76))
-      //    hardwareData.batteryPercent = 30;
-      //  if ((hardwareData.batteryVoltage < 3.77) && (hardwareData.batteryVoltage > 3.74))
-      //    hardwareData.batteryPercent = 25;
-      //  if ((hardwareData.batteryVoltage < 3.75) && (hardwareData.batteryVoltage > 3.72))
-      //    hardwareData.batteryPercent = 20;      
-      //  if ((hardwareData.batteryVoltage < 3.73) && (hardwareData.batteryVoltage > 3.70))
-      //    hardwareData.batteryPercent = 15;
-      //  if ((hardwareData.batteryVoltage < 3.73) && (hardwareData.batteryVoltage > 3.70))
-      //    hardwareData.batteryPercent = 15;
-      //  if ((hardwareData.batteryVoltage < 3.71) && (hardwareData.batteryVoltage > 3.68))
-      //    hardwareData.batteryPercent = 10;
-      //  if ((hardwareData.batteryVoltage < 3.69) && (hardwareData.batteryVoltage > 3.60))
-      //    hardwareData.batteryPercent = 5;
-      //  if (hardwareData.batteryVoltage < 3.61)
-      //    hardwareData.batteryPercent = 0;
-      batteryVoltageAvailable = true;
+      hardwareData.batteryPercent = (uint8_t)(((hardwareData.batteryVoltage - batteryMinVoltage) / (batteryMaxVoltage - batteryMinVoltage)) * 100);
     #endif
   }
-  if (batteryVoltageAvailable) 
+  if (hardwareData.batteryVoltage!=0) 
   {
-    debugMessage(String("Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + " %");
+    debugMessage(String("Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + "%");
   }
 }
 
@@ -351,7 +311,7 @@ void screenBatteryStatus()
 // Displays remaining battery % as graphic in lower right of screen
 // used in XXXScreen() routines
 {
-  if (batteryVoltageAvailable) 
+  if (hardwareData.batteryVoltage!=0) 
   {
     const int barHeight = 10;
     const int barWidth = 28;
@@ -362,7 +322,7 @@ void screenBatteryStatus()
     display.fillRect((display.width() - barWidth - 8), 5, (int((hardwareData.batteryPercent / 100) * barWidth)), barHeight, EPD_GRAY);
     // battery border
     display.drawRect((display.width() - barWidth - 8), 5, barWidth, barHeight, EPD_BLACK);
-    debugMessage("battery status drawn to screen");
+    debugMessage(String("battery status drawn to screen as ") + hardwareData.batteryPercent + "%" );
   }
 }
 
@@ -414,7 +374,7 @@ void screenSparkLines(int xStart, int yStart, int xWidth, int yHeight)
 
 void screenWiFiStatus() 
 {
-  if (internetAvailable) 
+  if (hardwareData.rssi!=0) 
   {
     const int barWidth = 3;
     const int barHeightMultiplier = 5;
@@ -434,77 +394,75 @@ void screenWiFiStatus()
       {
         display.fillRect(((display.width() - barStartingXModifier) + (b * barSpacingMultipler)), ((display.height()) - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, EPD_BLACK);
       }
-      debugMessage(String("WiFi signal strength on screen as ") + barCount +" bars");
+      debugMessage(String("WiFi signal strength drawn to screen as ") + barCount +" bars");
     }
     else
     {
       debugMessage("RSSI out of expected range");
     }
-    debugMessage("wifi meter drawn to screen");
   }
 }
 
-int initSensor() {
-  uint16_t error;
+bool sensorInit() {
   char errorMessage[256];
 
-// Handle two ESP32 I2C ports
-#if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
-  Wire1.begin();
-  envSensor.begin(Wire1);
-#else
-  Wire.begin();
-  envSensor.begin(Wire);
-#endif
+  #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
+    // these boards have two I2C ports so we have to initialize the appropriate port
+    Wire1.begin();
+    envSensor.begin(Wire1);
+  #else
+    // only one I2C port
+    Wire.begin();
+    envSensor.begin(Wire);
+  #endif
 
   envSensor.wakeUp();
   envSensor.setSensorAltitude(SITE_ALTITUDE);  // optimizes CO2 reading
 
-  error = envSensor.startPeriodicMeasurement();
+  uint16_t error = envSensor.startPeriodicMeasurement();
   if (error) {
     // Failed to initialize SCD40
     errorToString(error, errorMessage, 256);
     debugMessage(String(errorMessage) + " executing SCD40 startPeriodicMeasurement()");
-    return 0;
-  } else {
-    debugMessage("SCD40 initialized, waiting 5 sec for first measurement");
-    delay(5000);  // Give SCD40 time to warm up
-    return 1;     // success
+    return false;
+  } 
+  else
+  {
+    debugMessage("SCD40 initialized");
+    return true;
   }
 }
 
-int readSensor()
+bool sensorRead()
 // reads SCD40 READS_PER_SAMPLE times then stores last read
 {
-  uint16_t error;
   char errorMessage[256];
 
   screenAlert("CO2 check");
   for (int loop=1; loop<=READS_PER_SAMPLE; loop++)
   {
-    // minimum time between SCD40 reads
+    // SCD40 datasheet suggests 5 second delay between SCD40 reads
     delay(5000);
-    // read and store data if successful
-    error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity);
+    uint16_t error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity);
     // handle SCD40 errors
     if (error) {
       errorToString(error, errorMessage, 256);
       debugMessage(String(errorMessage) + " error during SCD4X read");
-      return 0;
+      return false;
     }
-    if (sensorData.ambientCO2<440 || sensorData.ambientCO2>6000)
+    if (sensorData.ambientCO2<400 || sensorData.ambientCO2>6000)
     {
       debugMessage("SCD40 CO2 reading out of range");
-      return 0;
+      return false;
     }
     //convert C to F for temp
     sensorData.ambientTempF = (sensorData.ambientTempF * 1.8) + 32;
-    debugMessage(String("SCD40 read ") + loop + " of 5: " + sensorData.ambientTempF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm");
+    debugMessage(String("SCD40 read ") + loop + " of " + READS_PER_SAMPLE + " : " + sensorData.ambientTempF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm");
   }
-  return 1;
+  return true;
 }
 
-void enableInternalPower()
+void powerEnable()
 {
   // Handle two ESP32 I2C ports
   #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
@@ -548,24 +506,29 @@ void enableInternalPower()
   #endif
 }
 
-void disableInternalPower(int deepSleepTime)
+void powerDisable(int deepSleepTime)
 // Powers down hardware in preparation for board deep sleep
 {
-  display.powerDown();
-  digitalWrite(EPD_RESET, LOW);  // hardware power down mode
-  aq_network.networkStop();
-
-  uint16_t error;
   char errorMessage[256];
 
-  // stop potentially previously started measurement
-  error = envSensor.stopPeriodicMeasurement();
+  debugMessage("Starting power down activities");
+  // power down epd
+  display.powerDown();
+  digitalWrite(EPD_RESET, LOW);  // hardware power down mode
+  debugMessage("powered down epd");
+
+  networkDisconnect();
+
+  // power down SCD40
+
+  // stops potentially started measurement then powers down SCD40
+  uint16_t error = envSensor.stopPeriodicMeasurement();
   if (error) {
-    Serial.print("Error trying to execute stopPeriodicMeasurement(): ");
     errorToString(error, errorMessage, 256);
-    debugMessage(errorMessage);
+    debugMessage(String(errorMessage) + " executing SCD40 stopPeriodicMeasurement()");
   }
   envSensor.powerDown();
+  debugMessage("SCD40 powered down");
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
     // Turn off the I2C power
@@ -589,8 +552,8 @@ void disableInternalPower(int deepSleepTime)
     debugMessage("disabled Adafruit Feather ESP32S2 I2C power");
   #endif
 
-  debugMessage(String("Going to sleep for ") + (deepSleepTime) + " seconds");
   esp_sleep_enable_timer_wakeup(deepSleepTime*1000000); // ESP microsecond modifier
+  debugMessage(String("Going into ESP32 deep sleep for ") + (deepSleepTime) + " seconds");
   esp_deep_sleep_start();
 }
 
@@ -622,7 +585,6 @@ int nvStorageRead()
   for (int i=0; i<co2MaxStoredSamples; i++)
   {
     nvStoreBaseName = "co2Sample" + String(i);
-    //debugMessage(nvStoreBaseName);
     // get previously stored values. If they don't exist, create them as 400 (CO2 floor)
     co2Samples[i] = nvStorage.getLong(nvStoreBaseName.c_str(),400);
     debugMessage(String(nvStoreBaseName) + " retrieved from nv storage is " + co2Samples[i]);
@@ -638,4 +600,119 @@ void nvStorageWrite(int storedCounter)
   String nvStoreBaseName = "co2Sample" + String(storedCounter);
   nvStorage.putLong(nvStoreBaseName.c_str(),sensorData.ambientCO2);
   debugMessage(String(nvStoreBaseName) + " stored in nv storage as " + sensorData.ambientCO2);
+}
+
+bool networkConnect()
+{
+  #ifdef WIFI
+    // set hostname has to come before WiFi.begin
+    WiFi.hostname(CLIENT_ID);
+
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+    for (int tries = 1; tries <= CONNECT_ATTEMPT_LIMIT; tries++)
+    // Attempts WiFi connection, and if unsuccessful, re-attempts after CONNECT_ATTEMPT_INTERVAL second delay for CONNECT_ATTEMPT_LIMIT times
+    {
+      if (WiFi.status() == WL_CONNECTED)
+      {
+        hardwareData.rssi = abs(WiFi.RSSI());
+        debugMessage(String("WiFi IP address lease from ") + WIFI_SSID + " is " + WiFi.localIP().toString());
+        debugMessage(String("WiFi RSSI is: ") + hardwareData.rssi + " dBm");
+        return true;
+      }
+      debugMessage(String("Connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " to " + WIFI_SSID + " failed");
+      // use of delay() OK as this is initialization code
+      delay(CONNECT_ATTEMPT_INTERVAL * 1000); // convered into milliseconds
+    }
+  #endif
+  return false;
+}
+
+void networkDisconnect()
+{
+#ifdef WIFI
+  WiFi.disconnect();
+  debugMessage("Disconnected from WiFi network");
+#endif
+}
+
+void networkGetTime()
+{
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);    
+  debugMessage("NTP time: " + dateTimeString());
+}
+
+// Converts system time into human readable strings. Use NTP service
+String dateTimeString() {
+  String dateTime;
+
+  #ifdef WIFI
+    struct tm timeInfo;
+    if (getLocalTime(&timeInfo)) {
+      int day = timeInfo.tm_wday;
+      // int month = timeInfo.tm_mon;
+      // int year = timeInfo.tm_year + 1900;
+      int hour = timeInfo.tm_hour;
+      int minutes = timeInfo.tm_min;
+      // int seconds = timeinfo.tm_sec;
+
+      // short human readable format
+      dateTime = weekDays[day];
+      dateTime += " at ";
+      if (hour < 10) dateTime += "0";
+      dateTime += hour;
+      dateTime += ":";
+      if (minutes < 10) dateTime += "0";
+      dateTime += minutes;
+
+      // long human readable
+      // dateTime = weekDays[day];
+      // dateTime += ", ";
+
+      // if (month<10) dateTime += "0";
+      // dateTime += month;
+      // dateTime += "-";
+      // if (day<10) dateTime += "0";
+      // dateTime += day;
+      // dateTime += " at ";
+      // if (hour<10) dateTime += "0";
+      // dateTime += hour;
+      // dateTime += ":";
+      // if (minutes<10) dateTime += "0";
+      // dateTime += minutes;
+
+      // zulu format
+      // dateTime = year + "-";
+      // if (month()<10) dateTime += "0";
+      // dateTime += month;
+      // dateTime += "-";
+      // if (day()<10) dateTime += "0";
+      // dateTime += day;
+      // dateTime += "T";
+      // if (hour<10) dateTime += "0";
+      // dateTime += hour;
+      // dateTime += ":";
+      // if (minutes<10) dateTime += "0";
+      // dateTime += minutes;
+      // dateTime += ":";
+      // if (seconds<10) dateTime += "0";
+      // dateTime += seconds;
+      // switch (gmtOffset_sec)
+      // {
+      //   case 0:
+      //     dateTime += "Z";
+      //     break;
+      //   case -28800:
+      //     dateTime += "PDT";
+      //     break;
+      // }
+    } else {
+      dateTime = "Can't reach time service";
+    }
+  #else
+    // If no network defined
+    dateTime = "No network to set time";
+  #endif
+
+  return dateTime;
 }
