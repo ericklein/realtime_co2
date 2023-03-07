@@ -44,9 +44,6 @@ hdweData hardwareData;
 
   // NTP setup
   #include "time.h"
-
-  // Generalized access to HTTP services, Influx library invokes this itself
-  // #include <HTTPClient.h>
 #endif
 
 // initialize scd40 environment sensor
@@ -64,7 +61,6 @@ Adafruit_LC709203F lc;
 #include <Fonts/FreeSans9pt7b.h>
 #include <Fonts/FreeSans12pt7b.h>
 #include <Fonts/FreeSans18pt7b.h>
-//#include <Fonts/FreeSans24pt7b.h>
 
 // Special glyphs for the UI
 #include "glyphs.h"
@@ -89,7 +85,7 @@ const int sparklineHeight = 40;
   // MQTT interface depends on the underlying network client object, which is defined and
   // managed here (so needs to be defined here).
 
-  // Use WiFiClient class to create TCP connections and talk to hosts
+  // MQTT uses WiFiClient class to create TCP connections
   WiFiClient client;
 
   #include <Adafruit_MQTT.h>

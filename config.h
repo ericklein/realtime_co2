@@ -8,7 +8,7 @@
 // Step 1: Set conditional compile flags
 #define DEBUG 	// Output to serial port
 #define WIFI   	// use WiFi
-// #define MQTT 		// log sensor data to M/QTT broker
+#define MQTT 		// log sensor data to M/QTT broker
 //#define HASSIO_MQTT  // And, if MQTT enabled, with Home Assistant too?
 #define INFLUX	// Log data to InfluxDB server
 
@@ -40,18 +40,7 @@ const float batteryMinVoltage	= 3.2; 	// what we regard as an empty battery
 	#define VBATPIN A13
 #endif
 
-#if defined (ARDUINO_ADAFRUIT_QTPY_ESP32S2)
-	#define EPD_CS      15	// A3 = 15
-	#define EPD_DC      26	// A0 = 26
-	#define SRAM_CS     25	// A1 = 25, can set to -1 to not use a pin (uses a lot of RAM!)
-	#define EPD_RESET   -1	// can set to -1 and share with chip Reset (can't deep sleep)
-	#define EPD_BUSY    -1	// can set to -1 to not use a pin (will wait a fixed delay)
-
-	// battery pin via Adafruit LiIon Charger BFF Add-On for QT Py, pt#5397 
-	// #define VBATPIN 		27 	// A2 = 27
-#endif
-
-// Adafruit 1.5" mono EPD (#4196) 
+// Adafruit 1.5" mono EPD (part#4196) 
 // rotation 1 orients the display so the wiring is at the top
 // rotation of 3 flips it so the wiring is at the bottom
 // 200x200 resolution
