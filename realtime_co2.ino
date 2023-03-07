@@ -35,7 +35,6 @@ typedef struct
 hdweData hardwareData;
 
 #ifdef WIFI
-
   #if defined(ESP8266)
     #include <ESP8266WiFi.h>
   #elif defined(ESP32)
@@ -82,9 +81,6 @@ const int sparklineHeight = 40;
 #endif
 
 #ifdef MQTT
-  // MQTT interface depends on the underlying network client object, which is defined and
-  // managed here (so needs to be defined here).
-
   // MQTT uses WiFiClient class to create TCP connections
   WiFiClient client;
 

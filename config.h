@@ -26,10 +26,9 @@
 const float batteryMaxVoltage	= 4.2; 	// maximum battery voltage
 const float batteryMinVoltage	= 3.2; 	// what we regard as an empty battery
 
-// Pin config for e-paper display
-
+// Pin config for host board
 #if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
-	// Adafruit Feather ESP32 V2
+	// Adafruit 1.5" mono EPD (part#4196)
 	#define EPD_CS      12
 	#define EPD_DC      13
 	#define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
@@ -40,10 +39,8 @@ const float batteryMinVoltage	= 3.2; 	// what we regard as an empty battery
 	#define VBATPIN A13
 #endif
 
-// Adafruit 1.5" mono EPD (part#4196) 
 // rotation 1 orients the display so the wiring is at the top
 // rotation of 3 flips it so the wiring is at the bottom
-// 200x200 resolution
 #define DISPLAY_ROTATION 3
 
 // SCD40 sample timing
