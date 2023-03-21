@@ -109,8 +109,8 @@ extern void debugMessage(String messageText);
     // Home Assistant MQTT integration is enabled in config.h.
     // Note that it depends on the value of the state topic matching what's in Home
     // Assistant's configuration file (configuration.yaml).
-    void hassio_mqtt_publish(uint16_t co2, float tempF, float humidity) {
-        const int capacity = JSON_OBJECT_SIZE(3);
+    void hassio_mqtt_publish(uint16_t co2, float tempF, float humidity, float batteryVoltage) {
+        const int capacity = JSON_OBJECT_SIZE(4);
         StaticJsonDocument<capacity> doc;
 
         // Declare buffer to hold serialized object
@@ -123,6 +123,7 @@ extern void debugMessage(String messageText);
         doc["temperature"] = tempF;
         doc["humidity"] = humidity;
         doc["co2"] = co2;
+        doc["batteryVolts"] = batteryVoltage;
 
         serializeJson(doc,output);
         // Publish state info to its topic (MQTT_HASSIO_STATE)

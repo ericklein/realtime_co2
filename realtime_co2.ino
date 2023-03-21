@@ -93,6 +93,7 @@ const int sparklineHeight = 40;
   extern bool mqttSensorTempFUpdate(float tempF);
   extern bool mqttSensorHumidityUpdate(float humidity);
   extern bool mqttSensorCO2Update(uint16_t co2);
+  extern void hassio_mqtt_publish(uint16_t co2,float tempF,float humidity,float batteryVoltage);
 #endif
 
 void setup()
@@ -156,6 +157,13 @@ void setup()
       {
           upd_flags += "M";
       }
+      #ifdef HASSIO_MQTT
+        debugMessage("Establishing MQTT for Home Assistant");
+        // Either configure sensors in Home Assistant's configuration.yaml file
+        // directly or attempt to do it via MQTT auto-discovery
+        // hassio_mqtt_setup();  // Config for MQTT auto-discovery
+        hassio_mqtt_publish(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity, hardwareData.batteryVoltage);
+      #endif
     #endif
 
     #ifdef INFLUX

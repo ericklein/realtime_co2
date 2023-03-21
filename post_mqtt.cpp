@@ -167,12 +167,4 @@ extern void debugMessage(String messageText);
     }
     return(result);
   }
-
-  #ifdef HASSIO_MQTT
-    debugMessage("Establishing MQTT for Home Assistant");
-    // Either configure sensors in Home Assistant's configuration.yaml file
-    // directly or attempt to do it via MQTT auto-discovery
-    // hassio_mqtt_setup();  // Config for MQTT auto-discovery
-    hassio_mqtt_publish(co2,tempF,humidity);
-  #endif
 #endif
