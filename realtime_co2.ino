@@ -336,10 +336,11 @@ void screenBatteryStatus()
 
 void screenSparkLines(int xStart, int yStart, int xWidth, int yHeight)
 {
-  // load test CO2 (if needed)
+  // TEST ONLY: load test CO2 values
   //sparkLineTestValues(co2MaxStoredSamples);
 
-  uint16_t co2Min, co2Max = co2Samples[0];
+  uint16_t co2Min = co2Samples[0];
+  uint16_t co2Max = co2Samples[0];
   // # of pixels between each samples x and y coordinates
   int xPixelStep, yPixelStep;
 
@@ -355,11 +356,11 @@ void screenSparkLines(int xStart, int yStart, int xWidth, int yHeight)
     if(co2Samples[i] > co2Max) co2Max = co2Samples[i];
     if(co2Samples[i] < co2Min) co2Min = co2Samples[i];
   }
-  debugMessage(String("Max CO2 in stored sample range is ") + co2Max);
-  debugMessage(String("Min CO2 in stored sample range is ") + co2Min);
+  debugMessage(String("Max CO2 in stored sample range is ") + co2Max +", min is " + co2Min);
  
   // vertical distance (pixels) between each displayed co2 value
-  yPixelStep = ((co2Max - co2Min) / yHeight);
+  yPixelStep = round(((co2Max - co2Min) / yHeight)+.5);
+  debugMessage(String("xPixelStep is ") + xPixelStep + ", yPixelStep is " + yPixelStep);
 
   // sparkline border box (if needed)
   //display.drawRect(xLeftMargin,ySparkline, xRightMargin,sparklineHeight, EPD_BLACK);
@@ -368,7 +369,7 @@ void screenSparkLines(int xStart, int yStart, int xWidth, int yHeight)
   for(int i=0;i<co2MaxStoredSamples;i++)
   {
     sparkLineX[i] = (xStart + (i * xPixelStep));
-    sparkLineY[i] = ((yStart + yHeight) - int((co2Samples[i]-co2Min) / yPixelStep));
+    sparkLineY[i] = ((yStart + yHeight) - (int)((co2Samples[i]-co2Min) / yPixelStep));
     // draw/extend sparkline after first value is generated
     if (i != 0)
       display.drawLine(sparkLineX[i-1],sparkLineY[i-1],sparkLineX[i],sparkLineY[i],EPD_BLACK);  
