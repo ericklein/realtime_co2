@@ -37,7 +37,7 @@
 #include "secrets.h"
 
 // Shared helper function
-extern void debugMessage(String messageText);
+extern void debugMessage(String messageText, int messageLevel);
 
 #if defined MQTT && defined HASSIO_MQTT
     // MQTT setup
@@ -66,7 +66,7 @@ extern void debugMessage(String messageText);
         Adafruit_MQTT_Publish hconfigPub = Adafruit_MQTT_Publish(&aq_mqtt,HCONFIG_TOPIC);
         Adafruit_MQTT_Publish cconfigPub = Adafruit_MQTT_Publish(&aq_mqtt,CCONFIG_TOPIC);
 
-        debugMessage(String("Configuring RCO2 for Home Assistant MQTT auto-discovery"));
+        debugMessage(String("Configuring RCO2 for Home Assistant MQTT auto-discovery"),1);
         // Create config info for temperature sensor
         doc["device_class"] = "temperature";
         doc["name"] = "Temperature";
@@ -76,7 +76,7 @@ extern void debugMessage(String messageText);
 
         serializeJson(doc,output);
         // Publish temperature config to its topic (TCONFIG_TOPIC) as a retained message
-        debugMessage(output);
+        debugMessage(output,1);
         tconfigPub.publish(output,true);
 
         // Reset config data for humidity sensor
@@ -88,7 +88,7 @@ extern void debugMessage(String messageText);
 
         serializeJson(doc,output);
         // Publish humidity config to its topic (HCONFIG_TOPIC) as a retained message
-        debugMessage(output);
+        debugMessage(output,1);
         hconfigPub.publish(output,true);
 
         // Reset config data for co2 sensor
@@ -100,7 +100,7 @@ extern void debugMessage(String messageText);
 
         serializeJson(doc,output);
         // Publish humidity config to its topic (CCONFIG_TOPIC) as a retained message
-        debugMessage(output);
+        debugMessage(output,1);
         cconfigPub.publish(output,true);
     }
 
@@ -118,8 +118,8 @@ extern void debugMessage(String messageText);
         
         Adafruit_MQTT_Publish rco2StatePub = Adafruit_MQTT_Publish(&aq_mqtt,MQTT_HASSIO_STATE);
 
-        debugMessage("Publishing RCO2 values to Home Assistant via MQTT (topic below)");
-        debugMessage(MQTT_HASSIO_STATE);
+        debugMessage("Publishing RCO2 values to Home Assistant via MQTT (topic below)",1);
+        debugMessage(MQTT_HASSIO_STATE,1);
         doc["temperature"] = tempF;
         doc["humidity"] = humidity;
         doc["co2"] = co2;
@@ -127,7 +127,7 @@ extern void debugMessage(String messageText);
 
         serializeJson(doc,output);
         // Publish state info to its topic (MQTT_HASSIO_STATE)
-        debugMessage(output);
+        debugMessage(output,1);
         rco2StatePub.publish(output);
     }
 #endif

@@ -6,7 +6,7 @@
 #include "secrets.h"
 
 // Shared helper function
-extern void debugMessage(String messageText);
+extern void debugMessage(String messageText, int messageLevel);
 
 #ifdef HASSIO_MQTT
   extern void hassio_mqtt_setup();
@@ -25,7 +25,7 @@ extern void debugMessage(String messageText);
     // exit if already connected
     if (aq_mqtt.connected())
     {
-      debugMessage(String("Already connected to MQTT broker ") + MQTT_BROKER);
+      debugMessage(String("Already connected to MQTT broker ") + MQTT_BROKER,1);
       return;
     }
 
@@ -50,7 +50,7 @@ extern void debugMessage(String messageText);
       //   default: debugMessage("Adafruit MQTT: GENERIC - Connection failed"); break;
       // }
       aq_mqtt.disconnect();
-      debugMessage(String("MQTT connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " failed with error msg: " + aq_mqtt.connectErrorString(mqttErr));
+      debugMessage(String("MQTT connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " failed with error msg: " + aq_mqtt.connectErrorString(mqttErr),1);
       delay(CONNECT_ATTEMPT_INTERVAL*1000);
     }
   } 
@@ -67,12 +67,12 @@ extern void debugMessage(String messageText);
       // publish battery voltage
       if (batteryVoltagePub.publish(batteryVoltage))
       {
-        debugMessage("MQTT publish: Battery Voltage succeeded");
+        debugMessage("MQTT publish: Battery Voltage succeeded",1);
         result = true;
       }
       else
       {
-        debugMessage("MQTT publish: Battery Voltage failed");
+        debugMessage("MQTT publish: Battery Voltage failed",1);
       }
     }
     return(result);
@@ -90,12 +90,12 @@ extern void debugMessage(String messageText);
 
       if (rssiLevelPub.publish(rssi))
       {
-        debugMessage("MQTT publish: WiFi RSSI succeeded");
+        debugMessage("MQTT publish: WiFi RSSI succeeded",1);
         result = true;
       }
       else
       {
-        debugMessage("MQTT publish: WiFi RSSI failed");
+        debugMessage("MQTT publish: WiFi RSSI failed",1);
       }
     }
     return(result);
@@ -113,11 +113,11 @@ extern void debugMessage(String messageText);
     // Attempt to publish sensor data
     if(tempPub.publish(tempF))
     {
-      debugMessage("MQTT publish: Temperature succeeded");
+      debugMessage("MQTT publish: Temperature succeeded",1);
       result = true;
     }
     else {
-      debugMessage("MQTT publish: Temperature failed");
+      debugMessage("MQTT publish: Temperature failed",1);
     }
     return(result);
   }
@@ -134,11 +134,11 @@ extern void debugMessage(String messageText);
     // Attempt to publish sensor data
     if(humidityPub.publish(humidity))
     {
-      debugMessage("MQTT publish: Humidity succeeded");
+      debugMessage("MQTT publish: Humidity succeeded",1);
       result = true;
     }
     else {
-      debugMessage("MQTT publish: Humidity failed");
+      debugMessage("MQTT publish: Humidity failed",1);
     }
     return(result);
   }
@@ -157,12 +157,12 @@ extern void debugMessage(String messageText);
     {
       if(co2Pub.publish(co2))
       {
-        debugMessage("MQTT publish: CO2 succeeded");
+        debugMessage("MQTT publish: CO2 succeeded",1);
         result = true;
       }
       else
       {
-        debugMessage("MQTT publish: CO2 failed");
+        debugMessage("MQTT publish: CO2 failed",1);
       }
     }
     return(result);
