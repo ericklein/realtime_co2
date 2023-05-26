@@ -6,7 +6,7 @@
 */
 
 // Configuration Step 1: Set debug message output
-// 0 = none, 1 = summary, 2 = verbose
+// comment out to turn off; 1 = summary, 2 = verbose
 #define DEBUG 1
 
 // Configuration Step 2: Set network data endpoints
