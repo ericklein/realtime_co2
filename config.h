@@ -116,4 +116,9 @@ const int   daylightOffset_sec = 0;
   #define INFLUX_DEV_MEASUREMENT "device"   // Used for logging AQI device data (e.g. battery)
 #endif
 
+#ifdef DWEET
+  #define DWEET_HOST "dweet.io"   // Typically dweet.io
+  #define DWEET_DEVICE "realtime_co2"     // dbryant custom name
+#endif
+
 #endif // #ifdef CONFIG_H
