@@ -9,6 +9,8 @@
 
 // hardware and internet configuration parameters
 #include "config.h"
+// Overall data and metadata naming scheme
+#include "data.h"
 // private credentials for network, MQTT, weather provider
 #include "secrets.h"
 
@@ -52,13 +54,15 @@
     // Add constant Influx data point tags - only do once, will be added to all individual data points
     // Modify if required to reflect your InfluxDB data model (and set values in config.h)
     // First for environmental data
-    dbenvdata.addTag("device", DEVICE_TYPE);
-    dbenvdata.addTag("location", DEVICE_LOCATION);
-    dbenvdata.addTag("site", DEVICE_SITE);
+    dbenvdata.addTag(TAG_KEY_DEVICE, DEVICE);
+    dbenvdata.addTag(TAG_KEY_SITE, DEVICE_SITE);
+    dbenvdata.addTag(TAG_KEY_LOCATION, DEVICE_LOCATION);
+    dbenvdata.addTag(TAG_KEY_ROOM, DEVICE_ROOM);
     // And again for device data
-    dbdevdata.addTag("device", DEVICE_TYPE);
-    dbdevdata.addTag("location", DEVICE_LOCATION);
-    dbdevdata.addTag("site", DEVICE_SITE);
+    dbdevdata.addTag(TAG_KEY_DEVICE, DEVICE);
+    dbdevdata.addTag(TAG_KEY_SITE, DEVICE_SITE);
+    dbdevdata.addTag(TAG_KEY_LOCATION, DEVICE_LOCATION);
+    dbdevdata.addTag(TAG_KEY_ROOM, DEVICE_ROOM);
 
     // Attempts influxDB connection, and if unsuccessful, re-attempts after CONNECT_ATTEMPT_INTERVAL second delay for CONNECT_ATTEMPT_LIMIT times
     for (int tries = 1; tries <= CONNECT_ATTEMPT_LIMIT; tries++) {
@@ -75,9 +79,9 @@
       // Connected, so store sensor values into timeseries data point
       dbenvdata.clearFields();
       // Report sensor readings
-      dbenvdata.addField("tempF", tempF);
-      dbenvdata.addField("humidity", humidity);
-      dbenvdata.addField("co2", co2);
+      dbenvdata.addField(VALUE_KEY_TEMPERATURE, tempF);
+      dbenvdata.addField(VALUE_KEY_HUMIDITY, humidity);
+      dbenvdata.addField(VALUE_KEY_CO2, co2);
       // Write point via connection to InfluxDB host
       if (!dbclient.writePoint(dbenvdata)) {
         debugMessage("InfluxDB write failed: " + dbclient.getLastErrorMessage());
@@ -92,9 +96,9 @@
       dbdevdata.clearFields();
       // Report device readings
       if (batteryVoltage > 0)
-        dbdevdata.addField("battery_volts", batteryVoltage);
+        dbdevdata.addField(VALUE_KEY_BATTERY_VOLTS, batteryVoltage);
       if (rssi>0)
-        dbdevdata.addField("rssi", rssi);
+        dbdevdata.addField(VALUE_KEY_RSSI, rssi);
       if ((batteryVoltage>0) || (rssi>0))
       {
         if (!dbclient.writePoint(dbdevdata))

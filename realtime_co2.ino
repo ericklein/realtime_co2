@@ -86,7 +86,7 @@ const int sparklineHeight = 40;
 
   #include <Adafruit_MQTT.h>
   #include <Adafruit_MQTT_Client.h>
-  Adafruit_MQTT_Client aq_mqtt(&client, MQTT_BROKER, MQTT_PORT, CLIENT_ID, MQTT_USER, MQTT_PASS);
+  Adafruit_MQTT_Client aq_mqtt(&client, MQTT_BROKER, MQTT_PORT, DEVICE_ID, MQTT_USER, MQTT_PASS);
 
   extern bool mqttDeviceWiFiUpdate(int rssi);
   extern bool mqttDeviceBatteryUpdate(float batteryVoltage);
@@ -109,7 +109,7 @@ void setup()
     debugMessage("realtime co2 monitor started");
     debugMessage("---------------------------------");
     debugMessage(String(SAMPLE_INTERVAL) + " second sample interval");
-    debugMessage("Client ID: " + String(CLIENT_ID));
+    debugMessage("Device (Client) ID: " + String(DEVICE_ID));
   #endif
 
   hardwareData.batteryVoltage = 0;  // 0 = no battery attached
@@ -615,7 +615,7 @@ bool networkConnect()
 {
   #ifdef WIFI
     // set hostname has to come before WiFi.begin
-    WiFi.hostname(CLIENT_ID);
+    WiFi.hostname(DEVICE_ID);
 
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
