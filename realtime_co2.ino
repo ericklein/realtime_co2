@@ -34,7 +34,8 @@ typedef struct
 } hdweData;
 hdweData hardwareData;
 
-#ifdef WIFI
+// activate only if using network data endpoints
+#if defined(MQTT) || defined(INFLUX) || defined(HASSIO_MQTT)  
   #if defined(ESP8266)
     #include <ESP8266WiFi.h>
   #elif defined(ESP32)
@@ -106,10 +107,10 @@ void setup()
     while (!Serial);
 
     // Confirm key site configuration parameters
-    debugMessage("realtime co2 monitor started");
-    debugMessage("---------------------------------");
-    debugMessage(String(SAMPLE_INTERVAL) + " second sample interval");
-    debugMessage("Device (Client) ID: " + String(DEVICE_ID));
+    debugMessage("realtime co2 monitor started",1);
+    debugMessage("---------------------------------",1);
+    debugMessage(String(SAMPLE_INTERVAL) + " second sample interval",2);
+    debugMessage("Client ID: " + String(CLIENT_ID),2);
   #endif
 
   hardwareData.batteryVoltage = 0;  // 0 = no battery attached
@@ -122,7 +123,7 @@ void setup()
 
   // Initialize environmental sensor
   if (!sensorInit()) {
-    debugMessage("Environment sensor failed to initialize");
+    debugMessage("Environment sensor failed to initialize",1);
     screenAlert("NO SCD40");
     // This error often occurs right after a firmware flash and reset.
     // Hardware deep sleep typically resolves it, so quickly cycle the hardware
@@ -131,7 +132,7 @@ void setup()
 
   // Environmental sensor available, so fetch values
   if (!sensorRead()) {
-    debugMessage("SCD40 returned no/bad data");
+    debugMessage("SCD40 returned no/bad data",1);
     screenAlert("SCD40 no/bad data");
     powerDisable(HARDWARE_ERROR_INTERVAL);
   }
@@ -158,7 +159,7 @@ void setup()
           upd_flags += "M";
       }
       #ifdef HASSIO_MQTT
-        debugMessage("Establishing MQTT for Home Assistant");
+        debugMessage("Establishing MQTT for Home Assistant",1);
         // Either configure sensors in Home Assistant's configuration.yaml file
         // directly or attempt to do it via MQTT auto-discovery
         // hassio_mqtt_setup();  // Config for MQTT auto-discovery
@@ -199,13 +200,16 @@ void setup()
 
 void loop() {}
 
-void debugMessage(String messageText)
+void debugMessage(String messageText, int messageLevel)
 // wraps Serial.println as #define conditional
 {
-#ifdef DEBUG
-  Serial.println(messageText);
-  Serial.flush();  // Make sure the message gets output (before any sleeping...)
-#endif
+  #ifdef DEBUG
+    if (messageLevel <= DEBUG)
+    {
+      Serial.println(messageText);
+      Serial.flush();  // Make sure the message gets output (before any sleeping...)
+    }
+  #endif
 }
 
 void screenAlert(String messageText)
@@ -226,7 +230,7 @@ void screenInfo(String messageText)
 // CO2 @ 50, temp/humid @ 125, sparkline @ 140, message/info @ 191
 
 {
-  debugMessage("Starting screen refresh");
+  debugMessage("Starting screen refresh",1);
 
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
@@ -284,7 +288,7 @@ void screenInfo(String messageText)
   display.print(messageText);
 
   display.display();
-  debugMessage("completed screen update");
+  debugMessage("completed screen update",1);
 }
 
 void batteryReadVoltage() 
@@ -311,7 +315,7 @@ void batteryReadVoltage()
   }
   if (hardwareData.batteryVoltage!=0) 
   {
-    debugMessage(String("Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + "%");
+    debugMessage(String("Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + "%",1);
   }
 }
 
@@ -330,7 +334,7 @@ void screenBatteryStatus()
     display.fillRect((display.width() - barWidth - 8), 5, (int((hardwareData.batteryPercent / 100) * barWidth)), barHeight, EPD_GRAY);
     // battery border
     display.drawRect((display.width() - barWidth - 8), 5, barWidth, barHeight, EPD_BLACK);
-    debugMessage(String("battery status drawn to screen as ") + hardwareData.batteryPercent + "%" );
+    debugMessage(String("battery status drawn to screen as ") + hardwareData.batteryPercent + "%",1);
   }
 }
 
@@ -356,11 +360,11 @@ void screenSparkLines(int xStart, int yStart, int xWidth, int yHeight)
     if(co2Samples[i] > co2Max) co2Max = co2Samples[i];
     if(co2Samples[i] < co2Min) co2Min = co2Samples[i];
   }
-  debugMessage(String("Max CO2 in stored sample range is ") + co2Max +", min is " + co2Min);
+  debugMessage(String("Max CO2 in stored sample range is ") + co2Max +", min is " + co2Min,2);
  
   // vertical distance (pixels) between each displayed co2 value
   yPixelStep = round(((co2Max - co2Min) / yHeight)+.5);
-  debugMessage(String("xPixelStep is ") + xPixelStep + ", yPixelStep is " + yPixelStep);
+  debugMessage(String("xPixelStep is ") + xPixelStep + ", yPixelStep is " + yPixelStep,2);
 
   // sparkline border box (if needed)
   //display.drawRect(xLeftMargin,ySparkline, xRightMargin,sparklineHeight, EPD_BLACK);
@@ -376,9 +380,9 @@ void screenSparkLines(int xStart, int yStart, int xWidth, int yHeight)
   }
   for (int i=0;i<co2MaxStoredSamples;i++)
   {
-    debugMessage(String("X,Y coordinates for CO2 sample ") + i + " is " + sparkLineX[i] + "," + sparkLineY[i]);
+    debugMessage(String("X,Y coordinates for CO2 sample ") + i + " is " + sparkLineX[i] + "," + sparkLineY[i],2);
   }
-    debugMessage("sparkline drawn to screen");
+    debugMessage("sparkline drawn to screen",1);
 }
 
 void screenWiFiStatus() 
@@ -403,11 +407,11 @@ void screenWiFiStatus()
       {
         display.fillRect(((display.width() - barStartingXModifier) + (b * barSpacingMultipler)), ((display.height()) - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, EPD_BLACK);
       }
-      debugMessage(String("WiFi signal strength drawn to screen as ") + barCount +" bars");
+      debugMessage(String("WiFi signal strength drawn to screen as ") + barCount +" bars",1);
     }
     else
     {
-      debugMessage("RSSI out of expected range");
+      debugMessage("RSSI out of expected range",1);
     }
   }
 }
@@ -432,12 +436,12 @@ bool sensorInit() {
   if (error) {
     // Failed to initialize SCD40
     errorToString(error, errorMessage, 256);
-    debugMessage(String(errorMessage) + " executing SCD40 startPeriodicMeasurement()");
+    debugMessage(String(errorMessage) + " executing SCD40 startPeriodicMeasurement()",1);
     return false;
   } 
   else
   {
-    debugMessage("SCD40 initialized");
+    debugMessage("SCD40 initialized",2);
     return true;
   }
 }
@@ -456,17 +460,17 @@ bool sensorRead()
     // handle SCD40 errors
     if (error) {
       errorToString(error, errorMessage, 256);
-      debugMessage(String(errorMessage) + " error during SCD4X read");
+      debugMessage(String(errorMessage) + " error during SCD4X read",1);
       return false;
     }
     if (sensorData.ambientCO2<400 || sensorData.ambientCO2>6000)
     {
-      debugMessage("SCD40 CO2 reading out of range");
+      debugMessage("SCD40 CO2 reading out of range",1);
       return false;
     }
     //convert C to F for temp
     sensorData.ambientTempF = (sensorData.ambientTempF * 1.8) + 32;
-    debugMessage(String("SCD40 read ") + loop + " of " + READS_PER_SAMPLE + " : " + sensorData.ambientTempF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm");
+    debugMessage(String("SCD40 read ") + loop + " of " + READS_PER_SAMPLE + " : " + sensorData.ambientTempF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm",1);
   }
   return true;
 }
@@ -478,7 +482,7 @@ void powerEnable()
     // ESP32 is kinda odd in that secondary ports must be manually
     // assigned their pins with setPins()!
     Wire1.setPins(SDA1, SCL1);
-    debugMessage("enabled ESP32 hardware with two I2C ports");
+    debugMessage("enabled ESP32 hardware with two I2C ports",2);
   #endif
 
   // Adafruit ESP32 I2C power management
@@ -495,7 +499,7 @@ void powerEnable()
     // if you need to turn the neopixel on
     // pinMode(NEOPIXEL_POWER, OUTPUT);
     // digitalWrite(NEOPIXEL_POWER, HIGH);
-    debugMessage("enabled Adafruit Feather ESP32S2 I2C power");
+    debugMessage("enabled Adafruit Feather ESP32S2 I2C power",1);
   #endif
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2_TFT)
@@ -511,7 +515,7 @@ void powerEnable()
     // Turn on neopixel
     // pinMode(NEOPIXEL_POWER, OUTPUT);
     // digitalWrite(NEOPIXEL_POWER, HIGH);
-    debugMessage("enabled Adafruit Feather ESP32 V2 I2C power");
+    debugMessage("enabled Adafruit Feather ESP32 V2 I2C power",1);
   #endif
 }
 
@@ -520,11 +524,11 @@ void powerDisable(int deepSleepTime)
 {
   char errorMessage[256];
 
-  debugMessage("Starting power down activities");
+  debugMessage("Starting power down activities",1);
   // power down epd
   display.powerDown();
   digitalWrite(EPD_RESET, LOW);  // hardware power down mode
-  debugMessage("powered down epd");
+  debugMessage("powered down epd",1);
 
   networkDisconnect();
 
@@ -534,10 +538,10 @@ void powerDisable(int deepSleepTime)
   uint16_t error = envSensor.stopPeriodicMeasurement();
   if (error) {
     errorToString(error, errorMessage, 256);
-    debugMessage(String(errorMessage) + " executing SCD40 stopPeriodicMeasurement()");
+    debugMessage(String(errorMessage) + " executing SCD40 stopPeriodicMeasurement()",1);
   }
   envSensor.powerDown();
-  debugMessage("SCD40 powered down");
+  debugMessage("SCD40 powered down",1);
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
     // Turn off the I2C power
@@ -547,7 +551,7 @@ void powerDisable(int deepSleepTime)
     // if you need to turn the neopixel off
     // pinMode(NEOPIXEL_POWER, OUTPUT);
     // digitalWrite(NEOPIXEL_POWER, LOW);
-    debugMessage("disabled Adafruit Feather ESP32 V2 I2C power");
+    debugMessage("disabled Adafruit Feather ESP32 V2 I2C power",1);
   #endif
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2)
@@ -558,11 +562,11 @@ void powerDisable(int deepSleepTime)
     // if you need to turn the neopixel off
     // pinMode(NEOPIXEL_POWER, OUTPUT);
     // digitalWrite(NEOPIXEL_POWER, LOW);
-    debugMessage("disabled Adafruit Feather ESP32S2 I2C power");
+    debugMessage("disabled Adafruit Feather ESP32S2 I2C power",1);
   #endif
 
   esp_sleep_enable_timer_wakeup(deepSleepTime*1000000); // ESP microsecond modifier
-  debugMessage(String("Going into ESP32 deep sleep for ") + (deepSleepTime) + " seconds");
+  debugMessage(String("Going into ESP32 deep sleep for ") + (deepSleepTime) + " seconds",1);
   esp_deep_sleep_start();
 }
 
@@ -588,7 +592,7 @@ int nvStorageRead()
   {
     storedCounter = -1;
   }
-  debugMessage(String("Retrieved CO2 sample pointer is: ") + storedCounter);
+  debugMessage(String("Retrieved CO2 sample pointer is: ") + storedCounter,2);
 
   String nvStoreBaseName;
   for (int i=0; i<co2MaxStoredSamples; i++)
@@ -596,7 +600,7 @@ int nvStorageRead()
     nvStoreBaseName = "co2Sample" + String(i);
     // get previously stored values. If they don't exist, create them as 400 (CO2 floor)
     co2Samples[i] = nvStorage.getLong(nvStoreBaseName.c_str(),400);
-    debugMessage(String(nvStoreBaseName) + " retrieved from nv storage is " + co2Samples[i]);
+    debugMessage(String(nvStoreBaseName) + " retrieved from nv storage is " + co2Samples[i],2);
   }
   return storedCounter;
 }
@@ -608,12 +612,13 @@ void nvStorageWrite(int storedCounter)
   nvStorage.putInt("counter", storedCounter);
   String nvStoreBaseName = "co2Sample" + String(storedCounter);
   nvStorage.putLong(nvStoreBaseName.c_str(),sensorData.ambientCO2);
-  debugMessage(String(nvStoreBaseName) + " stored in nv storage as " + sensorData.ambientCO2);
+  debugMessage(String(nvStoreBaseName) + " stored in nv storage as " + sensorData.ambientCO2,1);
 }
 
 bool networkConnect()
 {
-  #ifdef WIFI
+  // Run only if using network data endpoints
+  #if defined(MQTT) || defined(INFLUX) || defined(HASSIO_MQTT)
     // set hostname has to come before WiFi.begin
     WiFi.hostname(DEVICE_ID);
 
@@ -625,11 +630,11 @@ bool networkConnect()
       if (WiFi.status() == WL_CONNECTED)
       {
         hardwareData.rssi = abs(WiFi.RSSI());
-        debugMessage(String("WiFi IP address lease from ") + WIFI_SSID + " is " + WiFi.localIP().toString());
-        debugMessage(String("WiFi RSSI is: ") + hardwareData.rssi + " dBm");
+        debugMessage(String("WiFi IP address lease from ") + WIFI_SSID + " is " + WiFi.localIP().toString(),1);
+        debugMessage(String("WiFi RSSI is: ") + hardwareData.rssi + " dBm",1);
         return true;
       }
-      debugMessage(String("Connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " to " + WIFI_SSID + " failed");
+      debugMessage(String("Connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " to " + WIFI_SSID + " failed",1);
       // use of delay() OK as this is initialization code
       delay(CONNECT_ATTEMPT_INTERVAL * 1000); // convered into milliseconds
     }
@@ -639,23 +644,25 @@ bool networkConnect()
 
 void networkDisconnect()
 {
-#ifdef WIFI
-  WiFi.disconnect();
-  debugMessage("Disconnected from WiFi network");
-#endif
+  #if defined(MQTT) || defined(INFLUX) || defined(HASSIO_MQTT)
+  {
+    W609i.disconnect();
+    debugMessage("Disconnected from WiFi network",1);
+  }
+  #endif
 }
 
 void networkGetTime()
 {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);    
-  debugMessage("NTP time: " + dateTimeString());
+  debugMessage("NTP time: " + dateTimeString(),1);
 }
 
 // Converts system time into human readable strings. Use NTP service
 String dateTimeString() {
   String dateTime;
 
-  #ifdef WIFI
+  #if defined(MQTT) || defined(INFLUX) || defined(HASSIO_MQTT)
     struct tm timeInfo;
     if (getLocalTime(&timeInfo)) {
       int day = timeInfo.tm_wday;
@@ -715,13 +722,8 @@ String dateTimeString() {
       //     dateTime += "PDT";
       //     break;
       // }
-    } else {
-      dateTime = "Can't reach time service";
-    }
-  #else
-    // If no network defined
-    dateTime = "No network to set time";
+    } 
+    else dateTime = "Can't reach time service";
   #endif
-
   return dateTime;
 }

@@ -7,14 +7,17 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// Step 1: Set conditional compile flags
-#define DEBUG 	// Output to serial port
-#define WIFI   	// use WiFi
-#define MQTT 		// log sensor data to M/QTT broker
-//#define HASSIO_MQTT  // And, if MQTT enabled, with Home Assistant too?
-#define INFLUX	// Log data to InfluxDB server
+// Configuration Step 1: Set debug message output
+// comment out to turn off; 1 = summary, 2 = verbose
+#define DEBUG 1
 
-// Step 2: Set key device and installation configuration parameters.  These are used
+// Configuration Step 2: Set network data endpoints
+// #define MQTT 		    // log sensor data to M/QTT broker
+// #define HASSIO_MQTT  // And, if MQTT enabled, with Home Assistant too?
+// #define INFLUX	      // Log data to InfluxDB server
+// #define DWEET        // Post info to Dweet
+
+// Configuration Step 3: Set key device and installation configuration parameters.  These are used
 // widely throughout the code to properly identify the device and generate important
 // operating elements like MQTT topics, InfluxDB data tags (metadata).  Should be
 // customized to match the target installation. Values here are examples.
@@ -24,8 +27,8 @@
 #define DEVICE_ROOM      "boatdock"
 #define DEVICE_ID        "Unique_device_ID"
 
-// Step 3: Set battery size if applicable
-// based on a settings curve in the LC709203F datasheet
+// Configuration Step 4: Set battery parameters, if applicable
+// If LC709203F detected on i2c, define battery pack based on settings curve from datasheet
 // #define BATTERY_APA 0x08 // 100mAH
 // #define BATTERY_APA 0x0B // 200mAH
 #define BATTERY_APA 0x10 // 500mAH
@@ -35,31 +38,52 @@
 // #define BATTERY_APA 0x32 // 2500mAH
 // #define BATTERY_APA 0x36 // 3000mAH
 
+// used for reading battery voltage from analog PIN on applicable devices
 const float batteryMaxVoltage	= 4.2; 	// maximum battery voltage
 const float batteryMinVoltage	= 3.2; 	// what we regard as an empty battery
+// battery pin for Adafruit ESP32V2 (part#5400)
+#define VBATPIN A13
 
-// Pin config for host board
-#if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
-	// Adafruit 1.5" mono EPD (part#4196)
-	#define EPD_CS      12
-	#define EPD_DC      13
-	#define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
-	#define EPD_RESET   15 // can set to -1 and share with chip Reset (can't deep sleep)
-	#define EPD_BUSY    32 // can set to -1 to not use a pin (will wait a fixed delay)
+// Configuration Step 4: Set parameters for NTP time configuration
+// this will only be used if network data endpoints are defined
+#define ntpServer "pool.ntp.org"
+// const long  gmtOffset_sec = 0; // UTC
+// const long  gmtOffset_sec = 3600; // Ireland
+const long  gmtOffset_sec = -28800; // PST
+// const int   daylightOffset_sec = 0;
+const int   daylightOffset_sec = 3600; // US DT
 
-	// battery pin
-	#define VBATPIN A13
+// Configuration Step 5: Set network data endpoint parameters, if applicable
+// Set client ID; used by mqtt and wifi
+#define CLIENT_ID "RCO2"
+
+// Specify Measurement to use with InfluxDB for sensor and device info
+#ifdef INFLUX
+  #define INFLUX_ENV_MEASUREMENT "weather"  // Used for environmental sensor data
+  #define INFLUX_DEV_MEASUREMENT "device"   // Used for logging AQI device data (e.g. battery)
 #endif
 
-// Sleep time in seconds if hardware error occurs
-#define HARDWARE_ERROR_INTERVAL 10
+#ifdef DWEET
+  #define DWEET_HOST "dweet.io"         // Typically dweet.io
+  #define DWEET_DEVICE "realtime_co2"   // Needs to be unique across all of Dweet
+#endif
+
+// Configuration variables that are less likely to require changes
 
 #define CONNECT_ATTEMPT_LIMIT	3 // max connection attempts to internet services
 #define CONNECT_ATTEMPT_INTERVAL 10 // seconds between internet service connect attempts
 
+// Pin config for host board
+// Adafruit 1.5" mono EPD (part#4196)
+#define EPD_CS      12
+#define EPD_DC      13
+#define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
+#define EPD_RESET   15 // can set to -1 and share with chip Reset (can't deep sleep)
+#define EPD_BUSY    32 // can set to -1 to not use a pin (will wait a fixed delay)
+
 // Allow for adjustable screen as needed for physical packaging. 
-// Rotation 1 orients the display so the wiring is at the top.
-// A rotation of 3 flips it so the wiring is at the bottom
+// rotation 1 orients the display so the wiring is at the top
+// rotation of 3 flips it so the wiring is at the bottom
 #define DISPLAY_ROTATION 3
 
 // SCD40 sample timing
@@ -76,49 +100,11 @@ const float batteryMinVoltage	= 3.2; 	// what we regard as an empty battery
 // nvStorageRead and nvStorageWrite currently don't work if >10
 const int co2MaxStoredSamples = 10;
 
+// Sleep time in seconds if hardware error occurs
+#define HARDWARE_ERROR_INTERVAL 10
+
 const String co2Labels[5]={"Good", "OK", "So-So", "Poor", "Bad"};
 // used in aq_network.cpp
 const String weekDays[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
-
-// NTP time configuration
-//https://cplusplus.com/reference/ctime/tm/
-
-#define ntpServer "pool.ntp.org"
-// const long  gmtOffset_sec = 0; // UTC
-// const long  gmtOffset_sec = 3600; // Ireland
-const long  gmtOffset_sec = -28800; // PST
-const int   daylightOffset_sec = 0;
-// const int   daylightOffset_sec = 3600; // US DT
-
-#ifdef MQTT
-	// Adafruit I/O
-	// structure: username/feeds/groupname.feedname or username/feeds/feedname
-	// e.g. #define MQTT_PUB_TOPIC1		"sircoolio/feeds/pocket-office.temperature"
-
-	// structure: site/room/device/data	
-	// #define MQTT_PUB_TEMPF			"7828/demo/rco2/temperature"
-	// #define MQTT_PUB_HUMIDITY		"7828/demo/rco2/humidity"
-	// #define MQTT_PUB_CO2				"7828/demo/rco2/co2"
-	// #define MQTT_PUB_BATTVOLT		"7828/demo/rco2/battery-voltage"
-	// #define MQTT_PUB_RSSI				"7828/demo/rco2/rssi"
-
-  // Additional (optional) topics if integrating with Home Assistant
-  #ifdef HASSIO_MQTT
-    // Home Assistant entity configuration & state (values) topics. NOTE: MUST MATCH value
-    // used in Home Assistant MQTT configuration file (configuration.yaml). See 
-    // hassio_mqtt.cpp for details.
-    // #define MQTT_HASSIO_STATE   "homeassistant/sensor/rco2-1/state"
-  #endif
-#endif
-
-#ifdef INFLUX
-  #define INFLUX_ENV_MEASUREMENT "weather"  // Used for environmental sensor data
-  #define INFLUX_DEV_MEASUREMENT "device"   // Used for logging AQI device data (e.g. battery)
-#endif
-
-#ifdef DWEET
-  #define DWEET_HOST "dweet.io"   // Typically dweet.io
-  #define DWEET_DEVICE "realtime_co2"     // dbryant custom name
-#endif
 
 #endif // #ifdef CONFIG_H
