@@ -77,6 +77,10 @@ const int ytemp = 170;
 const int yMessage = display.height()- 9;
 const int sparklineHeight = 40;
 
+#ifdef DWEET
+  extern void post_dweet(uint16_t co2, float tempF, float humidity, float battv, int rssi);
+#endif 
+
 #ifdef INFLUX
   extern boolean post_influx(uint16_t co2, float tempF, float humidity, float batteryVoltage, int rssi);
 #endif
@@ -173,6 +177,11 @@ void setup()
       {
         upd_flags += "I";
       }
+    #endif
+
+    #ifdef DWEET
+      // Fire and forget posting of device & sensor status via Dweet.io (no update flags)
+      post_dweet(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity, hardwareData.batteryVoltage, hardwareData.rssi);
     #endif
 
     if (upd_flags == "") 
@@ -618,7 +627,7 @@ void nvStorageWrite(int storedCounter)
 bool networkConnect()
 {
   // Run only if using network data endpoints
-  #if defined(MQTT) || defined(INFLUX) || defined(HASSIO_MQTT)
+  #if defined(MQTT) || defined(INFLUX) || defined(HASSIO_MQTT) || defined(DWEET)
     // set hostname has to come before WiFi.begin
     WiFi.hostname(DEVICE_ID);
 

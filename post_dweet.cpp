@@ -12,7 +12,7 @@
 #include <HTTPClient.h> 
 
 // Shared helper function we call here too...
-extern void debugMessage(String messageText);
+extern void debugMessage(String messageText, int messageLevel);
 extern bool batteryVoltageAvailable;
 extern bool internetAvailable;
 
@@ -20,24 +20,25 @@ extern bool internetAvailable;
 // talking to the network, so may take a while to execute.
 void post_dweet(uint16_t co2, float tempF, float humidity, float battv, int rssi)
 {
-  String dweeturl = "http://" + String(DWEET_HOST) + "/dweet/for/" + String(DWEET_DEVICE);
-
-  // If no Internet, return
-  if(!internetAvailable) return(void ());
-
   WiFiClient dweet_client;
+
+  if(WiFi.status() != WL_CONNECTED) {
+    debugMessage("Lost network connection to " + String(WIFI_SSID) + "!",1);
+    return;
+  }
+
+  // Use our WiFiClient to connect to dweet
+  if (!dweet_client.connect(DWEET_HOST, 80)) {
+    debugMessage("Dweet connection failed!",1);
+    return;
+  }
 
   // Transmit Dweet as HTTP post with a data payload as JSON
   String device_info = "{\"rssi\":\""   + String(rssi)               + "\"," +
                         "\"ipaddr\":\"" + WiFi.localIP().toString()  + "\",";
   
   String battery_info;
-  if(batteryVoltageAvailable) {
-    battery_info = "\"battery_voltage\":\"" + String(battv)   + "\",";
-  }
-  else {
-    battery_info = "";
-  }
+  battery_info = "\"battery_voltage\":\"" + String(battv)   + "\",";
 
   String sensor_info;
   sensor_info = "\"co2\":\""         + String(co2)             + "\"," +
@@ -56,19 +57,19 @@ void post_dweet(uint16_t co2, float tempF, float humidity, float battv, int rssi
   dweet_client.println(postdata.length());
   dweet_client.println();
   dweet_client.println(postdata);
-  debugMessage("Dweet POST:");
-  debugMessage(postdata);
+  debugMessage("Dweet POST:",1);
+  debugMessage(postdata,1);
 
   delay(1500);  
 
   // Read all the lines of the reply from server (if any) and print them to Serial Monitor
   #ifdef DEBUG
-    debugMessageln("Dweet server response:");
+    debugMessage("Dweet server response:",2);
     while(dweet_client.available()){
       String line = dweet_client.readStringUntil('\r');
-      debugMessage(line);
+      debugMessage(line,2);
     }
-    debugMessageln("-----");
+    debugMessage("-----",2);
   #endif
   
   // Close client connection to dweet server
