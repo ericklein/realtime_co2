@@ -646,7 +646,7 @@ void networkDisconnect()
 {
   #if defined(MQTT) || defined(INFLUX) || defined(HASSIO_MQTT)
   {
-    W609i.disconnect();
+    WiFi.disconnect();
     debugMessage("Disconnected from WiFi network",1);
   }
   #endif

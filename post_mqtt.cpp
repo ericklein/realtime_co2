@@ -37,7 +37,7 @@ extern void debugMessage(String messageText, int messageLevel);
     {
       if ((mqttErr = aq_mqtt.connect()) == 0)
       {
-        debugMessage(String("Connected to MQTT broker ") + MQTT_BROKER);
+        debugMessage(String("Connected to MQTT broker ") + MQTT_BROKER,1);
         return;
       }
       // Adafruit IO connect errors
@@ -64,7 +64,7 @@ extern void debugMessage(String messageText, int messageLevel);
     String topic;
     topic = String(DEVICE_SITE) + "/" + String(DEVICE_LOCATION) + "/" + String(DEVICE_ROOM) +
             "/" + String(DEVICE) + "/" + String(key);
-    debugMessage(String("Generated MQTT topic: ") + topic);
+    debugMessage(String("Generated MQTT topic: ") + topic,2);
     return(topic);
   }
 

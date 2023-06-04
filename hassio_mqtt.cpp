@@ -128,7 +128,7 @@ extern void debugMessage(String messageText, int messageLevel);
         Adafruit_MQTT_Publish rco2StatePub = Adafruit_MQTT_Publish(&aq_mqtt,topic.c_str());
 
         debugMessage("Publishing RCO2 values to Home Assistant via MQTT (topic below)",1);
-        debugMessage(MQTT_HASSIO_STATE,1);
+        debugMessage(topic,1);
 
         doc["temperature"] = tempF;
         doc["humidity"] = humidity;
