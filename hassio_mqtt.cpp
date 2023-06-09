@@ -3,7 +3,7 @@
  * sensor readings to be reported to Home Assistant.   
  * 
  * Requires the following addition to configuration.yaml for Home Assistant, with the
- * state topic declared to match MQTT_HASSIO_STATE as defined in config.h. Also, Unique IDs, 
+ * state topic built from deployment parameters defined in config.h. Also, Unique IDs, 
  * which enable additional UI customization features for the sensors in Home Assistant,
  * can be generated here: https://www.uuidgenerator.net/version1.
 
@@ -11,19 +11,19 @@
     sensor:
      - name: "Temperature"
       device_class: "temperature"
-      state_topic: "homeassistant/sensor/rco2-1/state"
+      state_topic: "{DEVICE_SITE}/{DEVICE}/{DEVICE_ID}/state"
       unit_of_measurement: "°F"
       unique_id: "-- GENERATE A UUID TO USE HERE --"
       value_template: "{{ value_json.temperature }}"
     - name: "Humidity"
       device_class: "humidity"
-      state_topic: "homeassistant/sensor/rco2-1/state"
+      state_topic: "{DEVICE_SITE}/{DEVICE}/{DEVICE_ID}/state"
       unit_of_measurement: "%"
       unique_id: "-- GENERATE A UUID TO USE HERE --"
       value_template: "{{ value_json.humidity }}"
     - name: "CO2"
       device_class: "carbon_dioxide"
-      state_topic: "homeassistant/sensor/rco2-1/state"
+      state_topic: "{DEVICE_SITE}/{DEVICE}/{DEVICE_ID}/state"
       unit_of_measurement: "ppm"
       unique_id: "-- GENERATE A UUID TO USE HERE --"
       value_template: "{{ value_json.co2 }}"
@@ -60,6 +60,11 @@ extern void debugMessage(String messageText, int messageLevel);
 
         // Declare buffer to hold serialized object
         char output[1024];
+        String topic;
+        // Generate the device state topic for Home Assistant using deployment parameters from
+        // config.h.  Note that this must match the state topic as specified in Home Assiatant's
+        // configuration file (configuration.yaml) for this device.
+        topic = String(DEVICE_SITE) + "/" + String(DEVICE) + "/" + String(DEVICE_ID) + "/state";
 
         // Create MQTT publish objects for the config channels
         Adafruit_MQTT_Publish tconfigPub = Adafruit_MQTT_Publish(&aq_mqtt,TCONFIG_TOPIC);
@@ -70,7 +75,7 @@ extern void debugMessage(String messageText, int messageLevel);
         // Create config info for temperature sensor
         doc["device_class"] = "temperature";
         doc["name"] = "Temperature";
-        doc["state_topic"] = MQTT_HASSIO_STATE;
+        doc["state_topic"] = topic.c_str();
         doc["unit_of_measurement"] = "°F";
         doc["value_template"] = "{{ value_json.temperature}}";
 
@@ -82,7 +87,7 @@ extern void debugMessage(String messageText, int messageLevel);
         // Reset config data for humidity sensor
         doc["device_class"] = "humidity";
         doc["name"] = "Humidity";
-        doc["state_topic"] = MQTT_HASSIO_STATE;
+        doc["state_topic"] = topic.c_str();
         doc["unit_of_measurement"] = "%";
         doc["value_template"] = "{{ value_json.humidity}}";
 
@@ -94,7 +99,7 @@ extern void debugMessage(String messageText, int messageLevel);
         // Reset config data for co2 sensor
         doc["device_class"] = "carbon_dioxide";
         doc["name"] = "CO2";
-        doc["state_topic"] = MQTT_HASSIO_STATE;
+        doc["state_topic"] = topic.c_str();
         doc["unit_of_measurement"] = "ppm";
         doc["value_template"] = "{{ value_json.co2}}";
 
@@ -115,11 +120,16 @@ extern void debugMessage(String messageText, int messageLevel);
 
         // Declare buffer to hold serialized object
         char output[1024];
-        
-        Adafruit_MQTT_Publish rco2StatePub = Adafruit_MQTT_Publish(&aq_mqtt,MQTT_HASSIO_STATE);
+        String topic;
+        // Generate the device state topic for Home Assistant using deployment parameters from
+        // config.h.  Note that this must match the state topic as specified in Home Assiatant's
+        // configuration file (configuration.yaml) for this device.
+        topic = String(DEVICE_SITE) + "/" + String(DEVICE) + "/" + String(DEVICE_ID) + "/state";
+        Adafruit_MQTT_Publish rco2StatePub = Adafruit_MQTT_Publish(&aq_mqtt,topic.c_str());
 
         debugMessage("Publishing RCO2 values to Home Assistant via MQTT (topic below)",1);
-        debugMessage(MQTT_HASSIO_STATE,1);
+        debugMessage(topic,1);
+
         doc["temperature"] = tempF;
         doc["humidity"] = humidity;
         doc["co2"] = co2;

@@ -2,6 +2,8 @@
 
 // hardware and internet configuration parameters
 #include "config.h"
+// Overall data and metadata naming scheme
+#include "data.h"
 // private credentials for network, MQTT, weather provider
 #include "secrets.h"
 
@@ -35,7 +37,7 @@ extern void debugMessage(String messageText, int messageLevel);
     {
       if ((mqttErr = aq_mqtt.connect()) == 0)
       {
-        debugMessage(String("Connected to MQTT broker ") + MQTT_BROKER);
+        debugMessage(String("Connected to MQTT broker ") + MQTT_BROKER,1);
         return;
       }
       // Adafruit IO connect errors
@@ -55,13 +57,26 @@ extern void debugMessage(String messageText, int messageLevel);
     }
   } 
 
+  // Utility function to streamline dynamically generating MQTT topics using site and device 
+  // parameters defined in config.h and our standard naming scheme using values set in data.h
+  String generateTopic(char *key)
+  {
+    String topic;
+    topic = String(DEVICE_SITE) + "/" + String(DEVICE_LOCATION) + "/" + String(DEVICE_ROOM) +
+            "/" + String(DEVICE) + "/" + String(key);
+    debugMessage(String("Generated MQTT topic: ") + topic,2);
+    return(topic);
+  }
+
   int mqttDeviceBatteryUpdate(float batteryVoltage)
   {
     bool result = false;
     if (batteryVoltage > 0)
     {
+      String topic;
+      topic = generateTopic(VALUE_KEY_BATTERY_VOLTS);  // Generate topic using config.h and data.h parameters
       // add ,MQTT_QOS_1); if problematic, remove QOS parameter
-      Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_BATTVOLT);
+      Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt,topic.c_str());
       mqttConnect();
 
       // publish battery voltage
@@ -83,8 +98,10 @@ extern void debugMessage(String messageText, int messageLevel);
     int result = 0;
     if (rssi!=0)
     {
+      String topic;
+      topic = generateTopic(VALUE_KEY_RSSI);  // Generate topic using config.h and data.h parameters
       // add ,MQTT_QOS_1); if problematic, remove QOS parameter
-      Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_RSSI);
+      Adafruit_MQTT_Publish rssiLevelPub = Adafruit_MQTT_Publish(&aq_mqtt, topic.c_str());
       
       mqttConnect();
 
@@ -105,8 +122,10 @@ extern void debugMessage(String messageText, int messageLevel);
   // Publishes temperature data to MQTT broker
   {
     bool result = false;
+    String topic;
+    topic = generateTopic(VALUE_KEY_TEMPERATURE);  // Generate topic using config.h and data.h parameters
     // add ,MQTT_QOS_1); if problematic, remove QOS parameter
-    Adafruit_MQTT_Publish tempPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_TEMPF);
+    Adafruit_MQTT_Publish tempPub = Adafruit_MQTT_Publish(&aq_mqtt, topic.c_str());
     
     mqttConnect();
 
@@ -126,8 +145,10 @@ extern void debugMessage(String messageText, int messageLevel);
   // Publishes humidity data to MQTT broker
   {
     bool result = false;
+    String topic;
+    topic = generateTopic(VALUE_KEY_HUMIDITY);  // Generate topic using config.h and data.h parameters
     // add ,MQTT_QOS_1); if problematic, remove QOS parameter
-    Adafruit_MQTT_Publish humidityPub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_HUMIDITY);
+    Adafruit_MQTT_Publish humidityPub = Adafruit_MQTT_Publish(&aq_mqtt, topic.c_str());
     
     mqttConnect();
     
@@ -147,8 +168,10 @@ extern void debugMessage(String messageText, int messageLevel);
   // Publishes CO2 data to MQTT broker
   {
     bool result = false;
+    String topic;
+    topic = generateTopic(VALUE_KEY_CO2);  // Generate topic using config.h and data.h parameters
     // add ,MQTT_QOS_1); if problematic, remove QOS parameter
-    Adafruit_MQTT_Publish co2Pub = Adafruit_MQTT_Publish(&aq_mqtt, MQTT_PUB_CO2);   
+    Adafruit_MQTT_Publish co2Pub = Adafruit_MQTT_Publish(&aq_mqtt, topic.c_str());   
     
     mqttConnect();
 

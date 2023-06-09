@@ -4,18 +4,30 @@
 
   See README.md for target information and revision history
 */
+#ifndef CONFIG_H
+#define CONFIG_H
 
 // Configuration Step 1: Set debug message output
 // comment out to turn off; 1 = summary, 2 = verbose
 #define DEBUG 1
 
 // Configuration Step 2: Set network data endpoints
-// #define MQTT 		// log sensor data to M/QTT broker
+// #define MQTT 		    // log sensor data to M/QTT broker
 // #define HASSIO_MQTT  // And, if MQTT enabled, with Home Assistant too?
-// #define INFLUX	// Log data to InfluxDB server
+// #define INFLUX	      // Log data to InfluxDB server
+// #define DWEET        // Post info to Dweet
 
-// Configuration Step 3: Set battery parameters, if applicable
+// Configuration Step 3: Set key device and installation configuration parameters.  These are used
+// widely throughout the code to properly identify the device and generate important
+// operating elements like MQTT topics, InfluxDB data tags (metadata).  Should be
+// customized to match the target installation. Values here are examples.
+#define DEVICE           "realtime_co2"
+#define DEVICE_SITE      "beachhouse"
+#define DEVICE_LOCATION  "outdoor"
+#define DEVICE_ROOM      "boatdock"
+#define DEVICE_ID        "Unique_device_ID"
 
+// Configuration Step 4: Set battery parameters, if applicable
 // If LC709203F detected on i2c, define battery pack based on settings curve from datasheet
 // #define BATTERY_APA 0x08 // 100mAH
 // #define BATTERY_APA 0x0B // 200mAH
@@ -33,7 +45,6 @@ const float batteryMinVoltage	= 3.2; 	// what we regard as an empty battery
 #define VBATPIN A13
 
 // Configuration Step 4: Set parameters for NTP time configuration
-
 // this will only be used if network data endpoints are defined
 #define ntpServer "pool.ntp.org"
 // const long  gmtOffset_sec = 0; // UTC
@@ -43,45 +54,18 @@ const long  gmtOffset_sec = -28800; // PST
 const int   daylightOffset_sec = 3600; // US DT
 
 // Configuration Step 5: Set network data endpoint parameters, if applicable
-
-// set client ID; used by mqtt and wifi
+// Set client ID; used by mqtt and wifi
 #define CLIENT_ID "RCO2"
 
-#ifdef MQTT
-	// structure: site/room/device/data	
-	#define MQTT_PUB_TEMPF			"7828/demo/rco2/temperature"
-	#define MQTT_PUB_HUMIDITY		"7828/demo/rco2/humidity"
-	#define MQTT_PUB_CO2				"7828/demo/rco2/co2"
-	#define MQTT_PUB_BATTVOLT		"7828/demo/rco2/battery-voltage"
-	#define MQTT_PUB_RSSI				"7828/demo/rco2/rssi"
-
-  // Additional (optional) topics if integrating with Home Assistant
-  #ifdef HASSIO_MQTT
-    // Home Assistant entity configuration & state (values) topics. NOTE: MUST MATCH value
-    // used in Home Assistant MQTT configuration file (configuration.yaml). See 
-    // hassio_mqtt.cpp for details.
-    #define MQTT_HASSIO_STATE   "homeassistant/sensor/rco2-1/state"
-  #endif
-#endif
-
+// Specify Measurement to use with InfluxDB for sensor and device info
 #ifdef INFLUX
   #define INFLUX_ENV_MEASUREMENT "weather"  // Used for environmental sensor data
   #define INFLUX_DEV_MEASUREMENT "device"   // Used for logging AQI device data (e.g. battery)
-  
-	// Standard set of tag values used for each sensor data point stored to InfluxDB.  Reuses
-  // CLIENT_ID as defined anove here in config.h as well as device location (e.g., room in 
-  // the house) and site (indoors vs. outdoors, typically).
+#endif
 
-	// #define DEVICE_LOCATION "test"
-	#define DEVICE_LOCATION "RCO2-demo"
-	//#define DEVICE_LOCATION "kitchen"
-	// #define DEVICE_LOCATION "cellar"
-	// #define DEVICE_LOCATION "lab-office"
-	// #define DEVICE_LOCATION "master bedroom"
-  // #define DEVICE_LOCATION "pocket-office"
-
-	#define DEVICE_SITE "indoor"
-	#define DEVICE_TYPE "air quality"
+#ifdef DWEET
+  #define DWEET_HOST "dweet.io"         // Typically dweet.io
+  #define DWEET_DEVICE "realtime_co2"   // Needs to be unique across all of Dweet
 #endif
 
 // Configuration variables that are less likely to require changes
@@ -97,6 +81,7 @@ const int   daylightOffset_sec = 3600; // US DT
 #define EPD_RESET   15 // can set to -1 and share with chip Reset (can't deep sleep)
 #define EPD_BUSY    32 // can set to -1 to not use a pin (will wait a fixed delay)
 
+// Allow for adjustable screen as needed for physical packaging. 
 // rotation 1 orients the display so the wiring is at the top
 // rotation of 3 flips it so the wiring is at the bottom
 #define DISPLAY_ROTATION 3
@@ -121,3 +106,5 @@ const int co2MaxStoredSamples = 10;
 const String co2Labels[5]={"Good", "OK", "So-So", "Poor", "Bad"};
 // used in aq_network.cpp
 const String weekDays[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+
+#endif // #ifdef CONFIG_H
