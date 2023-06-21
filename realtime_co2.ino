@@ -66,16 +66,16 @@ Adafruit_LC709203F lc;
 #include "glyphs.h"
 
 // 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
-ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
+//ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
+// 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
+ThinkInk_154_Tricolor_Z90 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
 // screen layout assists
-const int xLeftMargin = 10;
-const int xRightMargin = ((display.width()) - (2 * xLeftMargin));
+const int xMargins = 10;
 const int yMargins = 2;
 const int yCO2 = 50;
 const int ySparkline = 95;
 const int yTemperature = 170;
-const int yMessage = display.height()-9;
 const int sparklineHeight = 40;
 const int batteryBarWidth = 28;
 const int batteryBarHeight = 10;
@@ -205,7 +205,7 @@ void setup()
     } 
     else 
     {
-      // External data services not updated and we have network time
+      // External data services updated and we have network time
       screenInfo("[+" + upd_flags + "] " + dateTimeString());
     }
   }
@@ -213,7 +213,7 @@ void setup()
   {
     // no internet connection, update screen with sensor data only
     #ifdef DEBUG
-      screenInfo("Test messsage");
+      screenInfo("debug mode, no internet");
     #else
       screenInfo("");
     #endif
@@ -238,7 +238,7 @@ void debugMessage(String messageText, int messageLevel)
 void screenAlert(int initialX, int initialY, String messageText)
 // Display critical error message on screen
 {
-  debugMessage("Starting screenAlert refresh",1);
+  debugMessage("screenAlert refresh started",1);
 
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
@@ -255,23 +255,23 @@ void screenInfo(String messageText)
 // Display environmental information
 // CO2 @ 50, temp/humid @ 125, sparkline @ 140, message/info @ 191
 {
-  debugMessage("Starting screenInfo refresh",1);
+  debugMessage("screenInfo refresh started",1);
   
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
 
   // screen helper routines
-  // draws battery in the upper right corner
-  screenHelperBatteryStatus(display.width()-8,7,batteryBarWidth, batteryBarHeight);
+  // draws battery in the upper right corner. -3 in first parameter accounts for battery nub
+  screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth-3),yMargins,batteryBarWidth, batteryBarHeight);
 
   // display wifi status
   screenHelperWiFiStatus((display.width() - 35), (display.height() - yMargins),wifiBarWidth,wifiBarHeightMultiplier,wifiBarSpacingMultipler);
 
   // display sparkline
-  screenHelperSparkLine(xLeftMargin,ySparkline,(display.width() - (2* xLeftMargin)),sparklineHeight);
+  screenHelperSparkLine(xMargins,ySparkline,(display.width() - (2* xMargins)),sparklineHeight);
 
   // draws any status message in the lower left corner. -8 in the first parameter accounts for fixed font height
-  screenHelperStatusMessage(5, yMessage, messageText);
+  screenHelperStatusMessage(xMargins, (display.height()-yMargins-8), messageText);
 
   // Indoor CO2 level
   // calculate CO2 value range in 400ppm bands
@@ -279,29 +279,29 @@ void screenInfo(String messageText)
   co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
 
   display.setFont(&FreeSans18pt7b);
-  display.setCursor(xLeftMargin, yCO2);
+  display.setCursor(xMargins, yCO2);
   display.print("CO");
-  display.setCursor(xLeftMargin+65,yCO2);
+  display.setCursor(xMargins+65,yCO2);
   display.print(": " + String(co2Labels[co2range]));
   display.setFont(&FreeSans12pt7b);
-  display.setCursor(xLeftMargin+50,yCO2+10);
+  display.setCursor(xMargins+50,yCO2+10);
   display.print("2");
-  display.setCursor((xLeftMargin+90),yCO2+25);
+  display.setCursor((xMargins+90),yCO2+25);
   display.print("(" + String(sensorData.ambientCO2) + ")");
 
   // Indoor temp
   int tempF = sensorData.ambientTempF + 0.5;
   display.setFont(&FreeSans18pt7b);
   if(tempF < 100) {
-    display.setCursor(xLeftMargin,yTemperature);
+    display.setCursor(xMargins,yTemperature);
     display.print(String(tempF));
-    display.drawBitmap(xLeftMargin+42,yTemperature-21,epd_bitmap_temperatureF_icon_sm,20,28,EPD_BLACK);
+    display.drawBitmap(xMargins+42,yTemperature-21,epd_bitmap_temperatureF_icon_sm,20,28,EPD_BLACK);
   }
   else {
-    display.setCursor(xLeftMargin,yTemperature);
+    display.setCursor(xMargins,yTemperature);
     display.print(String(tempF));
     display.setFont(&FreeSans12pt7b);
-    display.setCursor(xLeftMargin+65,yTemperature);
+    display.setCursor(xMargins+65,yTemperature);
     display.print("F"); 
   }
 
@@ -354,7 +354,7 @@ void screenHelperBatteryStatus(int initialX, int initialY, int barWidth, int bar
     // battery border
     display.drawRect(initialX,initialY,barWidth,barHeight,EPD_BLACK);
     //battery percentage as rectangle fill, 1 pixel inset from the battery border
-    display.fillRect((initialX + 2),(initialY + 2),(int((hardwareData.batteryPercent/100)*barWidth) - 4),(barHeight - 4),EPD_GRAY);
+    display.fillRect((initialX + 2),(initialY + 2),(int((hardwareData.batteryPercent/100)*barWidth) - 4),(barHeight - 4),EPD_BLACK);
     debugMessage(String("battery status drawn to screen as ") + hardwareData.batteryPercent + "%",2);
   }
 }
@@ -388,7 +388,7 @@ void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
   debugMessage(String("xPixelStep is ") + xPixelStep + ", yPixelStep is " + yPixelStep,2);
 
   // sparkline border box (if needed)
-  //display.drawRect(xLeftMargin,ySparkline, xRightMargin,sparklineHeight, EPD_BLACK);
+  //display.drawRect(xMargins,ySparkline, ((display.width()) - (2 * xMargins)),sparklineHeight, EPD_BLACK);
 
   // determine sparkline x,y values
   for(int i=0;i<co2MaxStoredSamples;i++)
@@ -403,7 +403,7 @@ void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
   {
     debugMessage(String("X,Y coordinates for CO2 sample ") + i + " is " + sparkLineX[i] + "," + sparkLineY[i],2);
   }
-    debugMessage("sparkline drawn to screen",1);
+    debugMessage("sparkline drawn to screen",2);
 }
 
 void screenHelperWiFiStatus(int initialX, int initialY, int barWidth, int barHeightMultiplier, int barSpacingMultipler)
@@ -592,7 +592,7 @@ void powerDisable(int deepSleepTime)
   #endif
 
   esp_sleep_enable_timer_wakeup(deepSleepTime*1000000); // ESP microsecond modifier
-  debugMessage(String("Going into ESP32 deep sleep for ") + (deepSleepTime) + " seconds",1);
+  debugMessage(String("Starting ESP32 deep sleep for ") + (deepSleepTime) + " seconds",1);
   esp_deep_sleep_start();
 }
 
