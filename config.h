@@ -9,7 +9,7 @@
 
 // Configuration Step 1: Set debug message output
 // comment out to turn off; 1 = summary, 2 = verbose
-#define DEBUG 1
+// #define DEBUG 1
 
 // Configuration Step 2: Set network data endpoints
 // #define MQTT 		    // log sensor data to M/QTT broker
@@ -44,7 +44,7 @@ const float batteryMinVoltage	= 3.2; 	// what we regard as an empty battery
 // battery pin for Adafruit ESP32V2 (part#5400)
 #define VBATPIN A13
 
-// Configuration Step 4: Set parameters for NTP time configuration
+// Configuration Step 5: Set parameters for NTP time configuration
 // this will only be used if network data endpoints are defined
 #define ntpServer "pool.ntp.org"
 // const long  gmtOffset_sec = 0; // UTC
@@ -53,7 +53,7 @@ const long  gmtOffset_sec = -28800; // PST
 // const int   daylightOffset_sec = 0;
 const int   daylightOffset_sec = 3600; // US DT
 
-// Configuration Step 5: Set network data endpoint parameters, if applicable
+// Configuration Step 6: Set network data endpoint parameters, if applicable
 // Set client ID; used by mqtt and wifi
 #define CLIENT_ID "RCO2"
 
@@ -73,8 +73,7 @@ const int   daylightOffset_sec = 3600; // US DT
 #define CONNECT_ATTEMPT_LIMIT	3 // max connection attempts to internet services
 #define CONNECT_ATTEMPT_INTERVAL 10 // seconds between internet service connect attempts
 
-// Pin config for host board
-// Adafruit 1.5" mono EPD (part#4196)
+// Pin config for host board to Adafruit 1.5" 200x200 EPD
 #define EPD_CS      12
 #define EPD_DC      13
 #define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
@@ -84,14 +83,14 @@ const int   daylightOffset_sec = 3600; // US DT
 // Allow for adjustable screen as needed for physical packaging. 
 // rotation 1 orients the display so the wiring is at the top
 // rotation of 3 flips it so the wiring is at the bottom
-#define DISPLAY_ROTATION 3
+#define DISPLAY_ROTATION 1
 
 // SCD40 sample timing
 #ifdef DEBUG
 	// number of times SCD40 is read, last read is the sample value
 	#define READS_PER_SAMPLE	1
-	// time between samples in seconds
-	#define SAMPLE_INTERVAL		60
+	// time between samples in seconds. Must be >=180 to protect EPD
+	#define SAMPLE_INTERVAL		180
 #else
 	#define READS_PER_SAMPLE	5
 	#define SAMPLE_INTERVAL 	180

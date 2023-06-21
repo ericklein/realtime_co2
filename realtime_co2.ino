@@ -66,16 +66,22 @@ Adafruit_LC709203F lc;
 #include "glyphs.h"
 
 // 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
-ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
+//ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
+// 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
+ThinkInk_154_Tricolor_Z90 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
 // screen layout assists
-const int xLeftMargin = 10;
-const int xRightMargin = ((display.width()) - (2 * xLeftMargin));
+const int xMargins = 10;
+const int yMargins = 2;
 const int yCO2 = 50;
 const int ySparkline = 95;
-const int ytemp = 170;
-const int yMessage = display.height()- 9;
+const int yTemperature = 170;
 const int sparklineHeight = 40;
+const int batteryBarWidth = 28;
+const int batteryBarHeight = 10;
+const int wifiBarWidth = 3;
+const int wifiBarHeightMultiplier = 3;
+const int wifiBarSpacingMultipler = 5;
 
 #ifdef DWEET
   extern void post_dweet(uint16_t co2, float tempF, float humidity, float battv, int rssi);
@@ -109,26 +115,35 @@ void setup()
     Serial.begin(115200);
     // wait for serial port connection
     while (!Serial);
-
-    // Confirm key site configuration parameters
-    debugMessage("realtime co2 monitor started",1);
-    debugMessage("---------------------------------",1);
-    debugMessage(String(SAMPLE_INTERVAL) + " second sample interval",2);
-    debugMessage("Client ID: " + String(CLIENT_ID),2);
   #endif
 
-  hardwareData.batteryVoltage = 0;  // 0 = no battery attached
+  debugMessage("realtime co2 monitor started",1);
+  debugMessage(String(SAMPLE_INTERVAL) + " second sample interval",2);
+  debugMessage("Client ID: " + String(CLIENT_ID),2);
+
   hardwareData.rssi = 0;            // 0 = no WiFi 
 
   powerEnable();
 
+  // initiate first for display of hardware error messagees
   display.begin(THINKINK_MONO);
   display.setRotation(DISPLAY_ROTATION);
+
+  // SCD40 stops initializing below battery threshold, so detect that first
+  hardwareData.batteryVoltage = 0;  // 0 = no battery attached
+  batteryReadVoltage();
+  if (hardwareData.batteryVoltage < batteryMinVoltage)
+  {
+    debugMessage("Battery below required threshold, rebooting",1);
+    screenAlert(40, ((display.height()/2)+6), "Low battery");
+    // this is a recursive boot sequence
+    powerDisable(HARDWARE_ERROR_INTERVAL);
+  }
 
   // Initialize environmental sensor
   if (!sensorInit()) {
     debugMessage("Environment sensor failed to initialize",1);
-    screenAlert("NO SCD40");
+    screenAlert(40, ((display.height()/2)+6), "No SCD40");
     // This error often occurs right after a firmware flash and reset.
     // Hardware deep sleep typically resolves it, so quickly cycle the hardware
     powerDisable(HARDWARE_ERROR_INTERVAL);
@@ -137,7 +152,7 @@ void setup()
   // Environmental sensor available, so fetch values
   if (!sensorRead()) {
     debugMessage("SCD40 returned no/bad data",1);
-    screenAlert("SCD40 no/bad data");
+    screenAlert(40, ((display.height()/2)+6),"SCD40 read issue");
     powerDisable(HARDWARE_ERROR_INTERVAL);
   }
 
@@ -149,7 +164,6 @@ void setup()
   co2Samples[storedCounter] = sensorData.ambientCO2;
   nvStorageWrite(storedCounter);
 
-  batteryReadVoltage();
   networkConnect();
 
   String upd_flags = "";  // Indicates whether/which external data services were updated
@@ -191,7 +205,7 @@ void setup()
     } 
     else 
     {
-      // External data services not updated and we have network time
+      // External data services updated and we have network time
       screenInfo("[+" + upd_flags + "] " + dateTimeString());
     }
   }
@@ -199,7 +213,7 @@ void setup()
   {
     // no internet connection, update screen with sensor data only
     #ifdef DEBUG
-      screenInfo("Test messsage");
+      screenInfo("debug mode, no internet");
     #else
       screenInfo("");
     #endif
@@ -221,37 +235,43 @@ void debugMessage(String messageText, int messageLevel)
   #endif
 }
 
-void screenAlert(String messageText)
+void screenAlert(int initialX, int initialY, String messageText)
 // Display critical error message on screen
 {
+  debugMessage("screenAlert refresh started",1);
+
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
   display.setFont(&FreeSans12pt7b);
-  display.setCursor(40, (display.height() / 2 + 6));
+  display.setCursor(initialX, initialY);
   display.print(messageText);
 
   //update display
   display.display();
+  debugMessage("screenAlert refresh complete",1);
 }
 
 void screenInfo(String messageText)
 // Display environmental information
 // CO2 @ 50, temp/humid @ 125, sparkline @ 140, message/info @ 191
-
 {
-  debugMessage("Starting screen refresh",1);
-
+  debugMessage("screenInfo refresh started",1);
+  
   display.clearBuffer();
   display.setTextColor(EPD_BLACK);
 
-  // display battery status
-  screenBatteryStatus();
+  // screen helper routines
+  // draws battery in the upper right corner. -3 in first parameter accounts for battery nub
+  screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth-3),yMargins,batteryBarWidth, batteryBarHeight);
 
   // display wifi status
-  screenWiFiStatus();
+  screenHelperWiFiStatus((display.width() - 35), (display.height() - yMargins),wifiBarWidth,wifiBarHeightMultiplier,wifiBarSpacingMultipler);
 
   // display sparkline
-  screenSparkLines(xLeftMargin,ySparkline,(display.width() - (2* xLeftMargin)),sparklineHeight);
+  screenHelperSparkLine(xMargins,ySparkline,(display.width() - (2* xMargins)),sparklineHeight);
+
+  // draws any status message in the lower left corner. -8 in the first parameter accounts for fixed font height
+  screenHelperStatusMessage(xMargins, (display.height()-yMargins-8), messageText);
 
   // Indoor CO2 level
   // calculate CO2 value range in 400ppm bands
@@ -259,45 +279,40 @@ void screenInfo(String messageText)
   co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
 
   display.setFont(&FreeSans18pt7b);
-  display.setCursor(xLeftMargin, yCO2);
+  display.setCursor(xMargins, yCO2);
   display.print("CO");
-  display.setCursor(xLeftMargin+65,yCO2);
+  display.setCursor(xMargins+65,yCO2);
   display.print(": " + String(co2Labels[co2range]));
   display.setFont(&FreeSans12pt7b);
-  display.setCursor(xLeftMargin+50,yCO2+10);
+  display.setCursor(xMargins+50,yCO2+10);
   display.print("2");
-  display.setCursor((xLeftMargin+90),yCO2+25);
+  display.setCursor((xMargins+90),yCO2+25);
   display.print("(" + String(sensorData.ambientCO2) + ")");
 
   // Indoor temp
   int tempF = sensorData.ambientTempF + 0.5;
   display.setFont(&FreeSans18pt7b);
   if(tempF < 100) {
-    display.setCursor(xLeftMargin,ytemp);
+    display.setCursor(xMargins,yTemperature);
     display.print(String(tempF));
-    display.drawBitmap(xLeftMargin+42,ytemp-21,epd_bitmap_temperatureF_icon_sm,20,28,EPD_BLACK);
+    display.drawBitmap(xMargins+42,yTemperature-21,epd_bitmap_temperatureF_icon_sm,20,28,EPD_BLACK);
   }
   else {
-    display.setCursor(xLeftMargin,ytemp);
+    display.setCursor(xMargins,yTemperature);
     display.print(String(tempF));
     display.setFont(&FreeSans12pt7b);
-    display.setCursor(xLeftMargin+65,ytemp);
+    display.setCursor(xMargins+65,yTemperature);
     display.print("F"); 
   }
 
   // Indoor humidity
   display.setFont(&FreeSans18pt7b);
-  display.setCursor(display.width()/2, ytemp);
+  display.setCursor(display.width()/2, yTemperature);
   display.print(String((int)(sensorData.ambientHumidity + 0.5)));
-  display.drawBitmap(display.width()/2+42,ytemp-21,epd_bitmap_humidity_icon_sm4,20,28,EPD_BLACK);
-
-  // status message
-  display.setFont();  // resets to system default monospace font
-  display.setCursor(5, yMessage);
-  display.print(messageText);
+  display.drawBitmap(display.width()/2+42,yTemperature-21,epd_bitmap_humidity_icon_sm4,20,28,EPD_BLACK);
 
   display.display();
-  debugMessage("completed screen update",1);
+  debugMessage("screenInfo refresh complete",1);
 }
 
 void batteryReadVoltage() 
@@ -328,26 +343,23 @@ void batteryReadVoltage()
   }
 }
 
-void screenBatteryStatus()
-// Displays remaining battery % as graphic in lower right of screen
-// used in XXXScreen() routines
+void screenHelperBatteryStatus(int initialX, int initialY, int barWidth, int barHeight)
+// helper function for screenXXX() routines that draws battery charge %
 {
-  if (hardwareData.batteryVoltage!=0) 
+  // IMPROVEMENT : Screen dimension boundary checks for function parameters
+  if (hardwareData.batteryVoltage>0) 
   {
-    const int barHeight = 10;
-    const int barWidth = 28;
-
-    // battery nub (3pix wide, 6pix high)
-    display.drawRect((display.width() - 8),7, 3, 6, EPD_BLACK);
-    //battery percentage as rectangle fill
-    display.fillRect((display.width() - barWidth - 8), 5, (int((hardwareData.batteryPercent / 100) * barWidth)), barHeight, EPD_GRAY);
+    // battery nub; width = 3pix, height = 60% of barHeight
+    display.fillRect((initialX+barWidth),(initialY+(int(barHeight/5))),3,(int(barHeight*3/5)),EPD_BLACK);
     // battery border
-    display.drawRect((display.width() - barWidth - 8), 5, barWidth, barHeight, EPD_BLACK);
-    debugMessage(String("battery status drawn to screen as ") + hardwareData.batteryPercent + "%",1);
+    display.drawRect(initialX,initialY,barWidth,barHeight,EPD_BLACK);
+    //battery percentage as rectangle fill, 1 pixel inset from the battery border
+    display.fillRect((initialX + 2),(initialY + 2),(int((hardwareData.batteryPercent/100)*barWidth) - 4),(barHeight - 4),EPD_BLACK);
+    debugMessage(String("battery status drawn to screen as ") + hardwareData.batteryPercent + "%",2);
   }
 }
 
-void screenSparkLines(int xStart, int yStart, int xWidth, int yHeight)
+void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
 {
   // TEST ONLY: load test CO2 values
   //sparkLineTestValues(co2MaxStoredSamples);
@@ -376,7 +388,7 @@ void screenSparkLines(int xStart, int yStart, int xWidth, int yHeight)
   debugMessage(String("xPixelStep is ") + xPixelStep + ", yPixelStep is " + yPixelStep,2);
 
   // sparkline border box (if needed)
-  //display.drawRect(xLeftMargin,ySparkline, xRightMargin,sparklineHeight, EPD_BLACK);
+  //display.drawRect(xMargins,ySparkline, ((display.width()) - (2 * xMargins)),sparklineHeight, EPD_BLACK);
 
   // determine sparkline x,y values
   for(int i=0;i<co2MaxStoredSamples;i++)
@@ -391,38 +403,43 @@ void screenSparkLines(int xStart, int yStart, int xWidth, int yHeight)
   {
     debugMessage(String("X,Y coordinates for CO2 sample ") + i + " is " + sparkLineX[i] + "," + sparkLineY[i],2);
   }
-    debugMessage("sparkline drawn to screen",1);
+    debugMessage("sparkline drawn to screen",2);
 }
 
-void screenWiFiStatus() 
+void screenHelperWiFiStatus(int initialX, int initialY, int barWidth, int barHeightMultiplier, int barSpacingMultipler)
+// helper function for screenXXX() routines that draws WiFi signal strength
 {
   if (hardwareData.rssi!=0) 
   {
-    const int barWidth = 3;
-    const int barHeightMultiplier = 5;
-    const int barSpacingMultipler = 5;
-    const int barStartingXModifier = 35;
-    int barCount;
-
     // Convert RSSI values to a 5 bar visual indicator
     // >90 means no signal
-    barCount = (6-((hardwareData.rssi/10)-3));
-    if (barCount>5) barCount = 5;
+    int barCount = constrain((6-((hardwareData.rssi/10)-3)),0,5);
     if (barCount>0)
     {
       // <50 rssi value = 5 bars, each +10 rssi value range = one less bar
       // draw bars to represent WiFi strength
       for (int b = 1; b <= barCount; b++)
       {
-        display.fillRect(((display.width() - barStartingXModifier) + (b * barSpacingMultipler)), ((display.height()) - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, EPD_BLACK);
+        display.fillRect((initialX + (b * barSpacingMultipler)), (initialY - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, EPD_BLACK);
       }
-      debugMessage(String("WiFi signal strength drawn to screen as ") + barCount +" bars",1);
+      debugMessage(String("WiFi signal strength on screen as ") + barCount +" bars",2);
     }
     else
     {
-      debugMessage("RSSI out of expected range",1);
+      // you could do a visual representation of no WiFi strength here
+      debugMessage("RSSI too low, no display",1);
     }
   }
+}
+
+void screenHelperStatusMessage(int initialX, int initialY, String messageText)
+// helper function for screenXXX() routines that draws a status message
+// uses system default font, so text drawn x+,y+ from initialX,Y
+{
+  // IMPROVEMENT : Screen dimension boundary checks for function parameters
+  display.setFont();  // resets to system default monospace font (6x8 pixels)
+  display.setCursor(initialX, initialY);
+  display.print(messageText);
 }
 
 bool sensorInit() {
@@ -460,7 +477,7 @@ bool sensorRead()
 {
   char errorMessage[256];
 
-  screenAlert("CO2 check");
+  screenAlert(40, ((display.height()/2)+6), "CO2 check");
   for (int loop=1; loop<=READS_PER_SAMPLE; loop++)
   {
     // SCD40 datasheet suggests 5 second delay between SCD40 reads
@@ -575,7 +592,7 @@ void powerDisable(int deepSleepTime)
   #endif
 
   esp_sleep_enable_timer_wakeup(deepSleepTime*1000000); // ESP microsecond modifier
-  debugMessage(String("Going into ESP32 deep sleep for ") + (deepSleepTime) + " seconds",1);
+  debugMessage(String("Starting ESP32 deep sleep for ") + (deepSleepTime) + " seconds",1);
   esp_deep_sleep_start();
 }
 
