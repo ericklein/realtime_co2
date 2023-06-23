@@ -9,7 +9,7 @@
 
 // Configuration Step 1: Set debug message output
 // comment out to turn off; 1 = summary, 2 = verbose
-// #define DEBUG 1
+#define DEBUG 1
 
 // Configuration Step 2: Set network data endpoints
 // #define MQTT 		    // log sensor data to M/QTT broker
@@ -22,10 +22,10 @@
 // operating elements like MQTT topics, InfluxDB data tags (metadata).  Should be
 // customized to match the target installation. Values here are examples.
 #define DEVICE           "realtime_co2"
-#define DEVICE_SITE      "beachhouse"
-#define DEVICE_LOCATION  "outdoor"
-#define DEVICE_ROOM      "boatdock"
-#define DEVICE_ID        "Unique_device_ID"
+#define DEVICE_SITE      "demo"
+#define DEVICE_LOCATION  "inside"
+#define DEVICE_ROOM      "demo"
+#define DEVICE_ID        "007"
 
 // Configuration Step 4: Set battery parameters, if applicable
 // If LC709203F detected on i2c, define battery pack based on settings curve from datasheet
@@ -75,7 +75,7 @@ const int   daylightOffset_sec = 3600; // US DT
 
 // Pin config for host board to Adafruit 1.5" 200x200 EPD
 #define EPD_CS      12
-#define EPD_DC      13
+#define EPD_DC      27
 #define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
 #define EPD_RESET   15 // can set to -1 and share with chip Reset (can't deep sleep)
 #define EPD_BUSY    32 // can set to -1 to not use a pin (will wait a fixed delay)
