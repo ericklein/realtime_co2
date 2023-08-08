@@ -15,7 +15,7 @@
 Preferences nvStorage;
 
 // environment sensor data
-typedef struct
+typedef struct envData
 {
   float     ambientTempF;
   float     ambientHumidity;
@@ -26,10 +26,11 @@ envData sensorData;
 uint16_t co2Samples[co2MaxStoredSamples];
 
 // hardware status data
-typedef struct
+typedef struct hdweData
 {
   float batteryPercent;
   float batteryVoltage;
+  //float batteryTemperatureF;
   int rssi;
 } hdweData;
 hdweData hardwareData;
@@ -80,8 +81,8 @@ const int sparklineHeight = 40;
 const int batteryBarWidth = 28;
 const int batteryBarHeight = 10;
 const int wifiBarWidth = 3;
-const int wifiBarHeightMultiplier = 3;
-const int wifiBarSpacingMultipler = 5;
+const int wifiBarHeightIncrement = 3;
+const int wifiBarSpacing = 5;
 
 #ifdef DWEET
   extern void post_dweet(uint16_t co2, float tempF, float humidity, float battv, int rssi);
@@ -131,8 +132,8 @@ void setup()
 
   // SCD40 stops initializing below battery threshold, so detect that first
   hardwareData.batteryVoltage = 0;  // 0 = no battery attached
-  batteryReadVoltage();
-  if (hardwareData.batteryVoltage < batteryMinVoltage)
+  batteryRead(batteryReads);
+  if (hardwareData.batteryVoltage < voltageTable[4])
   {
     debugMessage("Battery below required threshold, rebooting",1);
     screenAlert(40, ((display.height()/2)+6), "Low battery");
@@ -265,7 +266,7 @@ void screenInfo(String messageText)
   screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth-3),yMargins,batteryBarWidth, batteryBarHeight);
 
   // display wifi status
-  screenHelperWiFiStatus((display.width() - 35), (display.height() - yMargins),wifiBarWidth,wifiBarHeightMultiplier,wifiBarSpacingMultipler);
+  screenHelperWiFiStatus((display.width() - 35), (display.height() - yMargins),wifiBarWidth,wifiBarHeightIncrement,wifiBarSpacing);
 
   // display sparkline
   screenHelperSparkLine(xMargins,ySparkline,(display.width() - (2* xMargins)),sparklineHeight);
@@ -315,26 +316,40 @@ void screenInfo(String messageText)
   debugMessage("screenInfo refresh complete",1);
 }
 
-void batteryReadVoltage() 
+void batteryRead(int reads) 
 {
   // check to see if i2C monitor is available
   if (lc.begin())
   // Check battery monitoring status
   {
+    debugMessage(String("Version: 0x")+lc.getICversion(),2);
     lc.setPackAPA(BATTERY_APA);
+    lc.setThermistorB(3950);
+
     hardwareData.batteryPercent = lc.cellPercent();
     hardwareData.batteryVoltage = lc.cellVoltage();
+    hardwareData.batteryTemperatureF = 32 + (1.8* lc.getCellTemperature());
   } 
   else
   {
     // use supported boards to read voltage
     #if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
-      pinMode(VBATPIN,INPUT);
-
-      // assumes default ESP32 analogReadResolution (4095)
-      // the 1.05 is a fudge factor original author used to align reading with multimeter
-      hardwareData.batteryVoltage = ((float)analogRead(VBATPIN) / 4095) * 3.3 * 2 * 1.05;
-      hardwareData.batteryPercent = (uint8_t)(((hardwareData.batteryVoltage - batteryMinVoltage) / (batteryMaxVoltage - batteryMinVoltage)) * 100);
+      // modified from the Adafruit power management guide for Adafruit ESP32V2
+      float accumulatedVoltage = 0;
+      for (int loop = 0; loop < reads; loop++)
+      {
+        accumulatedVoltage += analogReadMilliVolts(VBATPIN);
+      }
+      hardwareData.batteryVoltage = accumulatedVoltage/reads; // we now have the average reading
+      // convert into volts  
+      hardwareData.batteryVoltage *= 2;    // we divided by 2, so multiply back
+      hardwareData.batteryVoltage /= 1000; // convert to volts!
+      hardwareData.batteryVoltage *= 2;     // we divided by 2, so multiply back
+      // ESP32 suggested algo
+      // hardwareData.batteryVoltage *= 3.3;   // Multiply by 3.3V, our reference voltage
+      // hardwareData.batteryVoltage *= 1.05;  // the 1.05 is a fudge factor original author used to align reading with multimeter
+      // hardwareData.batteryVoltage /= 4095;  // assumes default ESP32 analogReadResolution (4095)
+      hardwareData.batteryPercent = batteryGetChargeLevel(hardwareData.batteryVoltage);
     #endif
   }
   if (hardwareData.batteryVoltage!=0) 
@@ -343,20 +358,50 @@ void batteryReadVoltage()
   }
 }
 
+int batteryGetChargeLevel(float volts)
+{
+  int idx = 50;
+  int prev = 0;
+  int half = 0;
+  if (volts >= 4.2){
+    return 100;
+  }
+  if (volts <= 3.2){
+    return 0;
+  }
+  while(true){
+    half = abs(idx - prev) / 2;
+    prev = idx;
+    if(volts >= voltageTable[idx]){
+      idx = idx + half;
+    }else{
+      idx = idx - half;
+    }
+    if (prev == idx){
+      break;
+    }
+  }
+  debugMessage(String("Battery percentage as int is ")+idx+"%",1);
+  return idx;
+}
+
 void screenHelperBatteryStatus(int initialX, int initialY, int barWidth, int barHeight)
 // helper function for screenXXX() routines that draws battery charge %
 {
-  // IMPROVEMENT : Screen dimension boundary checks for function parameters
+  // IMPROVEMENT : Screen dimension boundary checks for passed parameters
+  // IMPROVEMENT : Check for offscreen drawing based on passed parameters
   if (hardwareData.batteryVoltage>0) 
   {
     // battery nub; width = 3pix, height = 60% of barHeight
-    display.fillRect((initialX+barWidth),(initialY+(int(barHeight/5))),3,(int(barHeight*3/5)),EPD_BLACK);
+    display.fillRect((initialX+barWidth), (initialY+(int(barHeight/5))), 3, (int(barHeight*3/5)), EPD_BLACK);
     // battery border
-    display.drawRect(initialX,initialY,barWidth,barHeight,EPD_BLACK);
+    display.drawRect(initialX, initialY, barWidth, barHeight, EPD_BLACK);
     //battery percentage as rectangle fill, 1 pixel inset from the battery border
-    display.fillRect((initialX + 2),(initialY + 2),(int((hardwareData.batteryPercent/100)*barWidth) - 4),(barHeight - 4),EPD_BLACK);
-    debugMessage(String("battery status drawn to screen as ") + hardwareData.batteryPercent + "%",2);
+    display.fillRect((initialX + 2), (initialY + 2), int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))), (barHeight - 4), EPD_BLACK);
+    debugMessage(String("battery percent visualized=") + hardwareData.batteryPercent + "%, " + int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))) + " pixels of " + (barWidth-4) + " max",1);
   }
+  else
+    debugMessage("No battery voltage for screenHelperBatteryStatus() to render",1);
 }
 
 void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)

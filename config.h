@@ -1,31 +1,24 @@
 /*
   Project Name:   realtime_co2
-  Description:    Regularly sample and log temperature, humidity, and co2 levels
+  Description:    public (non-secret) configuration data for realtime_co2
 
   See README.md for target information and revision history
 */
+
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// Configuration Step 1: Set debug message output
+// Configuration Step 1: Create and/or configure secrets.h. Use secrets_template.h as guide to create secrets.h
+
+// Configuration Step 2: Set debug message output
 // comment out to turn off; 1 = summary, 2 = verbose
 #define DEBUG 1
 
-// Configuration Step 2: Set network data endpoints
+// Configuration Step 3: Set network data endpoints
 // #define MQTT 		    // log sensor data to M/QTT broker
 // #define HASSIO_MQTT  // And, if MQTT enabled, with Home Assistant too?
 // #define INFLUX	      // Log data to InfluxDB server
 // #define DWEET        // Post info to Dweet
-
-// Configuration Step 3: Set key device and installation configuration parameters.  These are used
-// widely throughout the code to properly identify the device and generate important
-// operating elements like MQTT topics, InfluxDB data tags (metadata).  Should be
-// customized to match the target installation. Values here are examples.
-#define DEVICE           "realtime_co2"
-#define DEVICE_SITE      "demo"
-#define DEVICE_LOCATION  "inside"
-#define DEVICE_ROOM      "demo"
-#define DEVICE_ID        "007"
 
 // Configuration Step 4: Set battery parameters, if applicable
 // If LC709203F detected on i2c, define battery pack based on settings curve from datasheet
@@ -38,11 +31,10 @@
 // #define BATTERY_APA 0x32 // 2500mAH
 // #define BATTERY_APA 0x36 // 3000mAH
 
+// battery pin for Adafruit ESP32V2 used for reading battery voltage
 // used for reading battery voltage from analog PIN on applicable devices
-const float batteryMaxVoltage	= 4.2; 	// maximum battery voltage
-const float batteryMinVoltage	= 3.2; 	// what we regard as an empty battery
-// battery pin for Adafruit ESP32V2 (part#5400)
 #define VBATPIN A13
+const int   batteryReads = 5;
 
 // Configuration Step 5: Set parameters for NTP time configuration
 // this will only be used if network data endpoints are defined
@@ -105,5 +97,25 @@ const int co2MaxStoredSamples = 10;
 const String co2Labels[5]={"Good", "OK", "So-So", "Poor", "Bad"};
 // used in aq_network.cpp
 const String weekDays[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+
+// battery charge level lookup table
+const float voltageTable[101] = {
+  3.200,  3.250,  3.300,  3.350,  3.400,  3.450,
+  3.500,  3.550,  3.600,  3.650,  3.700,  3.703,
+  3.706,  3.710,  3.713,  3.716,  3.719,  3.723,
+  3.726,  3.729,  3.732,  3.735,  3.739,  3.742,
+  3.745,  3.748,  3.752,  3.755,  3.758,  3.761,
+  3.765,  3.768,  3.771,  3.774,  3.777,  3.781,
+  3.784,  3.787,  3.790,  3.794,  3.797,  3.800,
+  3.805,  3.811,  3.816,  3.821,  3.826,  3.832,
+  3.837,  3.842,  3.847,  3.853,  3.858,  3.863,
+  3.868,  3.874,  3.879,  3.884,  3.889,  3.895,
+  3.900,  3.906,  3.911,  3.917,  3.922,  3.928,
+  3.933,  3.939,  3.944,  3.950,  3.956,  3.961,
+  3.967,  3.972,  3.978,  3.983,  3.989,  3.994,
+  4.000,  4.008,  4.015,  4.023,  4.031,  4.038,
+  4.046,  4.054,  4.062,  4.069,  4.077,  4.085,
+  4.092,  4.100,  4.111,  4.122,  4.133,  4.144,
+  4.156,  4.167,  4.178,  4.189,  4.200};
 
 #endif // #ifdef CONFIG_H
