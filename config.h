@@ -12,12 +12,12 @@
 
 // Configuration Step 2: Set debug message output
 // comment out to turn off; 1 = summary, 2 = verbose
-#define DEBUG 1
+//#define DEBUG 1
 
 // Configuration Step 3: Set network data endpoints
 // #define MQTT 		    // log sensor data to M/QTT broker
 // #define HASSIO_MQTT  // And, if MQTT enabled, with Home Assistant too?
-// #define INFLUX	      // Log data to InfluxDB server
+//#define INFLUX	      // Log data to InfluxDB server
 // #define DWEET        // Post info to Dweet
 
 // Configuration Step 4: Set battery parameters, if applicable
@@ -84,7 +84,7 @@ const int   daylightOffset_sec = 3600; // US DT
 	// time between samples in seconds. Must be >=180 to protect EPD
 	#define SAMPLE_INTERVAL		180
 #else
-	#define READS_PER_SAMPLE	5
+	#define READS_PER_SAMPLE	3
 	#define SAMPLE_INTERVAL 	180
 #endif
 

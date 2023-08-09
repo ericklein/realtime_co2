@@ -1,38 +1,74 @@
 # Realtime CO2 monitor
 
 ### Purpose
-Realtime CO2 samples and logs temperature, humidity, and CO2 levels
+Realtime CO2 (aka rco2) samples and displays temperature, humidity, and CO2 (carbon dioxide) levels. It can log this data to a number of network endpoints.
 
-### Configuring targets
-- Set parameters in secrets.h (see config.h for list of required parameters)
-- Set parameters in config.h
+### Features
 
-### External Software Dependencies
-    - Sensirion I2C SCD4x library or Adafruit Unified Sensor + appropriate hardware (AHT2x or BME280) library
-    - Adafruit LC709203F library (#define BATTERY)
-    - Adafruit EPD library (MagTag)
-- include all dependencies to these libraries
+### Target configuration
+- Important access settings like WiFi SSID and password, ThingSpeak keys, and InfluxDB credentials are contained in a `secrets.h` file that is not included in this repo.  Instead you'll find the file `secrets_template.h`, which should be copied to `secrets.h` and then edited to supply the right access credentials and configuration values to match your deployment environment.
+- See config.h for parameter configuration
 
-### known, working BOM
+### Bill of Materials (BOM)
 - MCU
-    - ESP32 devices
-
-- Ethernet
-    - Particle Ethernet Featherwing: https://www.adafruit.com/product/4003
-    - Silicognition PoE Featherwing: https://www.crowdsupply.com/silicognition/poe-featherwing
+    - ESP32
 - WiFi
-    - esp32 boards
+    - Supported hardware
+        - ESP32 based boards
 - environment sensor
-    - SCD40 True CO2, Temperature and Humidity Sensor: https://www.adafruit.com/product/5187
-- battery monitor
-    - LC709203F battery voltage monitor: https://www.adafruit.com/product/4712
-- screen
-    - Adafruit supported epds: https://www.adafruit.com/product/4800
-- battery
-    - Adafruit battery: https://www.adafruit.com/product/2011
+    - [SCD40 True CO2, Temperature and Humidity Sensor](https://www.adafruit.com/product/5187)
+- Battery (monitor)
+    - define battery size in Step 2 of config.h
+    - batteryRead() looks for LC709203F, then tries to use supported board's voltage monitor GPIO pin
+        - if neither is found, battery voltage is not displayed or reported
+    - Supported hardware
+        -   [LC709203F battery voltage monitor](https://www.adafruit.com/product/4712)
+        - [Adafruit batteries](https://www.adafruit.com/product/2011)
+- Screen
+    - Supported hardware
+        - 1.54" e-paper display with 200x200 pixels
+            - [Adafruit 1.54" Monochrome ePaper Display, 200x200 with SSD1681](https://www.adafruit.com/product/4196)
+        - [Adafruit eInk Breakout Friend with 32KB SRAM](https://www.adafruit.com/product/4224)
+            - bare epd display
+    - Technical References
+        - https://cdn-learn.adafruit.com/downloads/pdf/adafruit-gfx-graphics-library.pdf
+
+### Pinouts
+- Optional LC709203F
+    - Stemma QT cable between MCU board and LC709203F board
+    - Battery connected to LC709203F board
+    - Power connector between LC709203F board and MCU board
+    - 10K thermistor between thermistor pin and ground pin on LC709203F board (required to measure battery temperature)
+- SPDT switch (on/off)
+    - MCU EN to SPD rightmost pin
+    - MCU GND to SPD
+- SCD40
+    - Stemma QT cable between MCU board and SCD40 board
+- EPD screen
+    - EPD VIN to MCU 3V
+    - EPD GND to MCU GND
+    - EPD SCK to MCU SCK
+    - EPD MISO to MCU MISO
+    - EPD MOSI to MCU MOSI
+    - see config.h for these pins
+        - EPD ECS
+        - EPD D/C
+        - EPD SRCS
+        - EPD RST
+        - EPD BUSY
+
+### Supported Internet Services for data logging
+- The routines that post data to back end services are generalized as much as practical, though do need to be customized to match the data fieles of interest both within the scope of the project and based on what users want to report and monitor.  Configuration values in config.h help with basic customization, e.g. name of the device, tags to use for Influx data, though in some cases code may need to be modified in the associated post routine.
+
+- MQTT Broker
+    - uncomment #define MQTT
+    - set appropriate parameters in config.h and secrets.h
+    - Technical References
+        - https://hackaday.com/2017/10/31/review-iot-data-logging-services-with-mqtt/
+- Influx
+- DWEET
 
 ### Information Sources
-
 - NTP
     - https://github.com/PaulStoffregen/Time/tree/master/examples/TimeNTP
 - Sensors 
@@ -40,21 +76,10 @@ Realtime CO2 samples and logs temperature, humidity, and CO2 levels
     - https://github.com/Sensirion/arduino-i2c-scd4x
     - https://github.com/sparkfun/SparkFun_SCD4x_Arduino_Library
     - https://emariete.com/en/sensor-co2-sensirion-scd40-scd41-2/
-- Ethernet
-    - https://docs.particle.io/datasheets/accessories/gen3-accessories/
-    - https://www.adafruit.com/product/4003#:~:text=Description%2D-,Description,along%20with%20a%20Feather%20accessory
-    - https://learn.adafruit.com/adafruit-wiz5500-wiznet-ethernet-featherwing/usage
-    - https://www.arduino.cc/en/reference/ethernet
-    - https://store.arduino.cc/usa/arduino-ethernet-rev3-without-poe
-- Display
-    - https://cdn-learn.adafruit.com/downloads/pdf/adafruit-gfx-graphics-library.pdf
-- MQTT services
-    - https://hackaday.com/2017/10/31/review-iot-data-logging-services-with-mqtt/
 
-### Issues
+### Issues and Feature Requests
 - See GitHub Issues for project
 
-### Feature Requests
-- See GitHub Issues for project
-
-### Questions
+### .plan (big ticket items)
+- WiFI Manager support
+- OTA Firmware update

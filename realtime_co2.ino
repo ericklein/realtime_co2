@@ -17,7 +17,7 @@ Preferences nvStorage;
 // environment sensor data
 typedef struct envData
 {
-  float     ambientTempF;
+  float     ambientTemperatureF;
   float     ambientHumidity;
   uint16_t  ambientCO2;
 } envData;
@@ -30,7 +30,7 @@ typedef struct hdweData
 {
   float batteryPercent;
   float batteryVoltage;
-  //float batteryTemperatureF;
+  float batteryTemperatureF;
   int rssi;
 } hdweData;
 hdweData hardwareData;
@@ -67,7 +67,7 @@ Adafruit_LC709203F lc;
 #include "glyphs.h"
 
 // 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
-//ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
+// ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 // 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
 ThinkInk_154_Tricolor_Z90 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
@@ -126,8 +126,11 @@ void setup()
 
   powerEnable();
 
-  // initiate first for display of hardware error messagees
-  display.begin(THINKINK_MONO);
+  // initiate first for display of hardware error messages
+  // 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
+  // display.begin(THINKINK_MONO);
+  // 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
+  display.begin(THINKINK_TRICOLOR);
   display.setRotation(DISPLAY_ROTATION);
 
   // SCD40 stops initializing below battery threshold, so detect that first
@@ -173,7 +176,7 @@ void setup()
     networkGetTime();
     // Update external data services
     #ifdef MQTT
-      if ((mqttSensorTempFUpdate(sensorData.ambientTempF)) && (mqttSensorHumidityUpdate(sensorData.ambientHumidity)) && (mqttSensorCO2Update(sensorData.ambientCO2)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage)))
+      if ((mqttSensorTempFUpdate(sensorData.ambientTemperatureF)) && (mqttSensorHumidityUpdate(sensorData.ambientHumidity)) && (mqttSensorCO2Update(sensorData.ambientCO2)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage)))
       {
           upd_flags += "M";
       }
@@ -182,13 +185,13 @@ void setup()
         // Either configure sensors in Home Assistant's configuration.yaml file
         // directly or attempt to do it via MQTT auto-discovery
         // hassio_mqtt_setup();  // Config for MQTT auto-discovery
-        hassio_mqtt_publish(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity, hardwareData.batteryVoltage);
+        hassio_mqtt_publish(sensorData.ambientCO2, sensorData.ambientTemperatureF, sensorData.ambientHumidity, hardwareData.batteryVoltage);
       #endif
     #endif
 
     #ifdef INFLUX
       // Returns true if successful
-      if (post_influx(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity, hardwareData.batteryVoltage, hardwareData.rssi))
+      if (post_influx(sensorData.ambientCO2, sensorData.ambientTemperatureF, sensorData.ambientHumidity, hardwareData.batteryVoltage, hardwareData.rssi))
       {
         upd_flags += "I";
       }
@@ -196,7 +199,7 @@ void setup()
 
     #ifdef DWEET
       // Fire and forget posting of device & sensor status via Dweet.io (no update flags)
-      post_dweet(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity, hardwareData.batteryVoltage, hardwareData.rssi);
+      post_dweet(sensorData.ambientCO2, sensorData.ambientTemperatureF, sensorData.ambientHumidity, hardwareData.batteryVoltage, hardwareData.rssi);
     #endif
 
     if (upd_flags == "") 
@@ -291,7 +294,7 @@ void screenInfo(String messageText)
   display.print("(" + String(sensorData.ambientCO2) + ")");
 
   // Indoor temp
-  int tempF = sensorData.ambientTempF + 0.5;
+  int tempF = sensorData.ambientTemperatureF + 0.5;
   display.setFont(&FreeSans18pt7b);
   if(tempF < 100) {
     display.setCursor(xMargins,yTemperature);
@@ -527,7 +530,7 @@ bool sensorRead()
   {
     // SCD40 datasheet suggests 5 second delay between SCD40 reads
     delay(5000);
-    uint16_t error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTempF, sensorData.ambientHumidity);
+    uint16_t error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTemperatureF, sensorData.ambientHumidity);
     // handle SCD40 errors
     if (error) {
       errorToString(error, errorMessage, 256);
@@ -540,8 +543,8 @@ bool sensorRead()
       return false;
     }
     //convert C to F for temp
-    sensorData.ambientTempF = (sensorData.ambientTempF * 1.8) + 32;
-    debugMessage(String("SCD40 read ") + loop + " of " + READS_PER_SAMPLE + " : " + sensorData.ambientTempF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm",1);
+    sensorData.ambientTemperatureF = (sensorData.ambientTemperatureF * 1.8) + 32;
+    debugMessage(String("SCD40 read ") + loop + " of " + READS_PER_SAMPLE + " : " + sensorData.ambientTemperatureF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm",1);
   }
   return true;
 }

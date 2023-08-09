@@ -114,7 +114,7 @@ extern void debugMessage(String messageText, int messageLevel);
     // Home Assistant MQTT integration is enabled in config.h.
     // Note that it depends on the value of the state topic matching what's in Home
     // Assistant's configuration file (configuration.yaml).
-    void hassio_mqtt_publish(uint16_t co2, float tempF, float humidity, float batteryVoltage) {
+    void hassio_mqtt_publish(uint16_t co2, float temperatureF, float humidity, float batteryVoltage) {
         const int capacity = JSON_OBJECT_SIZE(4);
         StaticJsonDocument<capacity> doc;
 
@@ -130,7 +130,7 @@ extern void debugMessage(String messageText, int messageLevel);
         debugMessage("Publishing RCO2 values to Home Assistant via MQTT (topic below)",1);
         debugMessage(topic,1);
 
-        doc["temperature"] = tempF;
+        doc["temperature"] = temperatureF;
         doc["humidity"] = humidity;
         doc["co2"] = co2;
         doc["batteryVolts"] = batteryVoltage;

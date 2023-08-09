@@ -12,7 +12,7 @@ extern void debugMessage(String messageText, int messageLevel);
 
 #ifdef HASSIO_MQTT
   extern void hassio_mqtt_setup();
-  extern void hassio_mqtt_publish(uint16_t co2, float tempF, float humidity);
+  extern void hassio_mqtt_publish(uint16_t co2, float temperatureF, float humidity);
 #endif
 
 #ifdef MQTT
@@ -118,7 +118,7 @@ extern void debugMessage(String messageText, int messageLevel);
     return(result);
   }
   
-  bool mqttSensorTempFUpdate(float tempF)
+  bool mqttSensortemperatureFUpdate(float temperatureF)
   // Publishes temperature data to MQTT broker
   {
     bool result = false;
@@ -130,7 +130,7 @@ extern void debugMessage(String messageText, int messageLevel);
     mqttConnect();
 
     // Attempt to publish sensor data
-    if(tempPub.publish(tempF))
+    if(tempPub.publish(temperatureF))
     {
       debugMessage("MQTT publish: Temperature succeeded",1);
       result = true;

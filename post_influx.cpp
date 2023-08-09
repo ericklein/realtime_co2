@@ -37,7 +37,7 @@
 
   // Post data to Influx DB using the connection established during setup
   // Operates over the network, so may take a while to execute
-  boolean post_influx(uint16_t co2, float tempF, float humidity, float batteryVoltage, int rssi)
+  boolean post_influx(uint16_t co2, float temperatureF, float humidity, float batteryVoltage, int rssi)
   {
     bool result = false;
 
@@ -81,7 +81,7 @@
       // Connected, so store sensor values into timeseries data point
       dbenvdata.clearFields();
       // Report sensor readings
-      dbenvdata.addField(VALUE_KEY_TEMPERATURE, tempF);
+      dbenvdata.addField(VALUE_KEY_TEMPERATURE, temperatureF);
       dbenvdata.addField(VALUE_KEY_HUMIDITY, humidity);
       dbenvdata.addField(VALUE_KEY_CO2, co2);
       // Write point via connection to InfluxDB host
