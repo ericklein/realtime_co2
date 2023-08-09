@@ -1,8 +1,6 @@
 /*
-  Project Name:   RCO2
-  Description:    write sensor data to InfluxDB
-
-  See README.md for target information and revision history
+  Project:      realtime_co2
+  Description:  write sensor data to InfluxDB
 */
 
 #include "Arduino.h"
@@ -52,7 +50,7 @@
     #endif
     
     // Add constant Influx data point tags - only do once, will be added to all individual data points
-    // Modify if required to reflect your InfluxDB data model (and set values in config.h)
+    // Modify if required to reflect your InfluxDB data model (and set values in secrets.h)
     // First for environmental data
     dbenvdata.addTag(TAG_KEY_DEVICE, DEVICE);
     dbenvdata.addTag(TAG_KEY_SITE, DEVICE_SITE);

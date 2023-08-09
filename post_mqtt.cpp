@@ -1,3 +1,8 @@
+/*
+  Project:      realtime_co2
+  Description:  write sensor data to MQTT broker
+*/
+
 #include "Arduino.h"
 
 // hardware and internet configuration parameters
@@ -40,17 +45,7 @@ extern void debugMessage(String messageText, int messageLevel);
         debugMessage(String("Connected to MQTT broker ") + MQTT_BROKER,1);
         return;
       }
-      // Adafruit IO connect errors
-      // switch (mqttErr)
-      // {
-      //   case 1: debugMessage("Adafruit MQTT: Wrong protocol"); break;
-      //   case 2: debugMessage("Adafruit MQTT: ID rejected"); break;
-      //   case 3: debugMessage("Adafruit MQTT: Server unavailable"); break;
-      //   case 4: debugMessage("Adafruit MQTT: Incorrect user or password"); break;
-      //   case 5: debugMessage("Adafruit MQTT: Not authorized"); break;
-      //   case 6: debugMessage("Adafruit MQTT: Failed to subscribe"); break;
-      //   default: debugMessage("Adafruit MQTT: GENERIC - Connection failed"); break;
-      // }
+
       aq_mqtt.disconnect();
       debugMessage(String("MQTT connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " failed with error msg: " + aq_mqtt.connectErrorString(mqttErr),1);
       delay(CONNECT_ATTEMPT_INTERVAL*1000);
@@ -77,6 +72,7 @@ extern void debugMessage(String messageText, int messageLevel);
       topic = generateTopic(VALUE_KEY_BATTERY_VOLTS);  // Generate topic using config.h and data.h parameters
       // add ,MQTT_QOS_1); if problematic, remove QOS parameter
       Adafruit_MQTT_Publish batteryVoltagePub = Adafruit_MQTT_Publish(&aq_mqtt,topic.c_str());
+      
       mqttConnect();
 
       // publish battery voltage
@@ -95,7 +91,7 @@ extern void debugMessage(String messageText, int messageLevel);
 
   int mqttDeviceWiFiUpdate(int rssi)
   {
-    int result = 0;
+    bool result = false;
     if (rssi!=0)
     {
       String topic;
@@ -118,7 +114,7 @@ extern void debugMessage(String messageText, int messageLevel);
     return(result);
   }
   
-  bool mqttSensortemperatureFUpdate(float temperatureF)
+  bool mqttSensorTemperatureFUpdate(float temperatureF)
   // Publishes temperature data to MQTT broker
   {
     bool result = false;

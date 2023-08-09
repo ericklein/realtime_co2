@@ -1,4 +1,9 @@
 /*
+  Project:      realtime_co2
+  Description:  write sensor data to hassio_mqtt
+*/
+
+/*
  * Additional routines for use in an MQTT-enabled environment with Home Assistant, allowing
  * sensor readings to be reported to Home Assistant.   
  * 

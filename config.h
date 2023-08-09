@@ -15,9 +15,9 @@
 //#define DEBUG 1
 
 // Configuration Step 3: Set network data endpoints
-// #define MQTT 		    // log sensor data to M/QTT broker
+#define MQTT 		    // log sensor data to M/QTT broker
 // #define HASSIO_MQTT  // And, if MQTT enabled, with Home Assistant too?
-//#define INFLUX	      // Log data to InfluxDB server
+// #define INFLUX	      // Log data to InfluxDB server
 // #define DWEET        // Post info to Dweet
 
 // Configuration Step 4: Set battery parameters, if applicable
@@ -56,8 +56,11 @@ const int   daylightOffset_sec = 3600; // US DT
 #endif
 
 #ifdef DWEET
-  #define DWEET_HOST "dweet.io"         // Typically dweet.io
-  #define DWEET_DEVICE "realtime_co2"   // Needs to be unique across all of Dweet
+	// Post data to the internet via dweet.io.  Set DWEET_DEVICE to be a
+	// unique name you want associated with this reporting device, allowing
+	// data to be easily retrieved through the web or Dweet's REST API.
+	#define DWEET_HOST "dweet.io"   // Typically dweet.io
+	#define DWEET_DEVICE "rco2"  // Must be unique across all of dweet.io
 #endif
 
 // Configuration variables that are less likely to require changes

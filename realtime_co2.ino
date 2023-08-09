@@ -1,6 +1,6 @@
 /*
-  Project Name:   realtime_co2
-  Description:    Regularly sample and log temperature, humidity, and co2 levels
+  Project:      realtime_co2
+  Description:  Regularly sample and log temperature, humidity, and co2 levels
 
   See README.md for target information and revision history
 */
@@ -85,11 +85,11 @@ const int wifiBarHeightIncrement = 3;
 const int wifiBarSpacing = 5;
 
 #ifdef DWEET
-  extern void post_dweet(uint16_t co2, float tempF, float humidity, float battv, int rssi);
+  extern void post_dweet(uint16_t co2, float temperatureF, float humidity, float battv, int rssi);
 #endif 
 
 #ifdef INFLUX
-  extern boolean post_influx(uint16_t co2, float tempF, float humidity, float batteryVoltage, int rssi);
+  extern boolean post_influx(uint16_t co2, float temperatureF, float humidity, float batteryVoltage, int rssi);
 #endif
 
 #ifdef MQTT
@@ -102,10 +102,10 @@ const int wifiBarSpacing = 5;
 
   extern bool mqttDeviceWiFiUpdate(int rssi);
   extern bool mqttDeviceBatteryUpdate(float batteryVoltage);
-  extern bool mqttSensorTempFUpdate(float tempF);
+  extern bool mqttSensorTemperatureFUpdate(float temperatureF);
   extern bool mqttSensorHumidityUpdate(float humidity);
   extern bool mqttSensorCO2Update(uint16_t co2);
-  extern void hassio_mqtt_publish(uint16_t co2,float tempF,float humidity,float batteryVoltage);
+  extern void hassio_mqtt_publish(uint16_t co2,float temperatureF,float humidity,float batteryVoltage);
 #endif
 
 void setup()
@@ -176,7 +176,7 @@ void setup()
     networkGetTime();
     // Update external data services
     #ifdef MQTT
-      if ((mqttSensorTempFUpdate(sensorData.ambientTemperatureF)) && (mqttSensorHumidityUpdate(sensorData.ambientHumidity)) && (mqttSensorCO2Update(sensorData.ambientCO2)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage)))
+      if ((mqttSensorTemperatureFUpdate(sensorData.ambientTemperatureF)) && (mqttSensorHumidityUpdate(sensorData.ambientHumidity)) && (mqttSensorCO2Update(sensorData.ambientCO2)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage)))
       {
           upd_flags += "M";
       }
@@ -294,16 +294,16 @@ void screenInfo(String messageText)
   display.print("(" + String(sensorData.ambientCO2) + ")");
 
   // Indoor temp
-  int tempF = sensorData.ambientTemperatureF + 0.5;
+  int temperatureF = sensorData.ambientTemperatureF + 0.5;
   display.setFont(&FreeSans18pt7b);
-  if(tempF < 100) {
+  if(temperatureF < 100) {
     display.setCursor(xMargins,yTemperature);
-    display.print(String(tempF));
+    display.print(String(temperatureF));
     display.drawBitmap(xMargins+42,yTemperature-21,epd_bitmap_temperatureF_icon_sm,20,28,EPD_BLACK);
   }
   else {
     display.setCursor(xMargins,yTemperature);
-    display.print(String(tempF));
+    display.print(String(temperatureF));
     display.setFont(&FreeSans12pt7b);
     display.setCursor(xMargins+65,yTemperature);
     display.print("F"); 
