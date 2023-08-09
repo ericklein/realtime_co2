@@ -7,8 +7,6 @@
 
 // hardware and internet configuration parameters
 #include "config.h"
-// Overall data and metadata naming scheme
-#include "data.h"
 // private credentials for network, MQTT, weather provider
 #include "secrets.h"
 
@@ -18,8 +16,7 @@
   // Shared helper function
   extern void debugMessage(String messageText, int messageLevel);
 
-  // Post a dweet to report the various sensor readings.  This routine blocks while
-  // talking to the network, so may take a while to execute.
+  // Post a dweet to report the various sensor readings
   void post_dweet(uint16_t co2, float temperatureF, float humidity, float battv, int rssi)
   {
     WiFiClient dweet_client;
@@ -39,8 +36,12 @@
     String device_info = "{\"rssi\":\""   + String(rssi)               + "\"," +
                           "\"ipaddr\":\"" + WiFi.localIP().toString()  + "\",";
     
-    String battery_info;
-    battery_info = "\"battery_voltage\":\"" + String(battv)   + "\",";
+    if(batteryVoltage > 0) {
+      battery_info = "\"battery_voltage\":\"" + String(batteryVoltage)   + "\",";
+    }
+    else {
+      battery_info = "";
+    }
 
     String sensor_info;
     sensor_info = "\"co2\":\""         + String(co2)             + "\"," +

@@ -2,7 +2,7 @@
   Project:      realtime_co2
   Description:  Regularly sample and log temperature, humidity, and co2 levels
 
-  See README.md for target information and revision history
+  See README.md for target information
 */
 
 // hardware and internet configuration parameters
@@ -105,7 +105,9 @@ const int wifiBarSpacing = 5;
   extern bool mqttSensorTemperatureFUpdate(float temperatureF);
   extern bool mqttSensorHumidityUpdate(float humidity);
   extern bool mqttSensorCO2Update(uint16_t co2);
-  extern void hassio_mqtt_publish(uint16_t co2,float temperatureF,float humidity,float batteryVoltage);
+  #ifdef HASSIO_MQTT
+    extern void hassio_mqtt_publish(uint16_t co2,float temperatureF,float humidity,float batteryVoltage);
+  #endif
 #endif
 
 void setup()

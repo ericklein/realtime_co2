@@ -1,8 +1,6 @@
 /*
   Project Name:   realtime_co2
   Description:    public (non-secret) configuration data for realtime_co2
-
-  See README.md for target information and revision history
 */
 
 #ifndef CONFIG_H
@@ -46,8 +44,9 @@ const long  gmtOffset_sec = -28800; // PST
 const int   daylightOffset_sec = 3600; // US DT
 
 // Configuration Step 6: Set network data endpoint parameters, if applicable
-// Set client ID; used by mqtt and wifi
-#define CLIENT_ID "RCO2"
+// set client ID; used by mqtt and wifi
+// structure is RCO2_room-name; e.g. RCO2_kitchen
+#define CLIENT_ID "RCO2_lab"
 
 // Specify Measurement to use with InfluxDB for sensor and device info
 #ifdef INFLUX
@@ -60,7 +59,7 @@ const int   daylightOffset_sec = 3600; // US DT
 	// unique name you want associated with this reporting device, allowing
 	// data to be easily retrieved through the web or Dweet's REST API.
 	#define DWEET_HOST "dweet.io"   // Typically dweet.io
-	#define DWEET_DEVICE "rco2"  // Must be unique across all of dweet.io
+	#define DWEET_DEVICE "makerhour-rco2"  // Must be unique across all of dweet.io
 #endif
 
 // Configuration variables that are less likely to require changes

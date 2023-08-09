@@ -17,7 +17,7 @@ extern void debugMessage(String messageText, int messageLevel);
 
 #ifdef HASSIO_MQTT
   extern void hassio_mqtt_setup();
-  extern void hassio_mqtt_publish(uint16_t co2, float temperatureF, float humidity);
+  extern void hassio_mqtt_publish(uint16_t co2, float temperatureF, float humidity, float batteryVoltage);
 #endif
 
 #ifdef MQTT
