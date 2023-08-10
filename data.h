@@ -8,7 +8,7 @@
 // expected to be customized there on a per installation basis.  These,
 // however, should not be changed.
 #define TAG_KEY_DEVICE     "device"     // Maps to DEVICE in config.h
-#define TAG_KEY_DEVICE_ID  "device_id"  // Maps to DEVICE_ID in config.h
+// #define TAG_KEY_DEVICE_ID  "device_id"  // Maps to DEVICE_ID in config.h
 #define TAG_KEY_SITE       "site"       // Maps to SITE in config.h
 #define TAG_KEY_LOCATION   "location"   // Maps to LOCATION in config.h
 #define TAG_KEY_ROOM       "room"       // Maps to ROOM in config.h
