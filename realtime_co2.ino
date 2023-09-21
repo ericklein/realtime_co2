@@ -18,7 +18,7 @@ Preferences nvStorage;
 typedef struct envData
 {
   float     ambientTemperatureF;
-  float     ambientHumidity;
+  float     ambientHumidity;     // RH [%]  
   uint16_t  ambientCO2;
 } envData;
 envData sensorData;
@@ -121,8 +121,8 @@ void setup()
   #endif
 
   debugMessage("realtime co2 monitor started",1);
+  debugMessage("Device ID: " + String(DEVICE_ID),1);
   debugMessage(String(SAMPLE_INTERVAL) + " second sample interval",2);
-  debugMessage("Client ID: " + String(CLIENT_ID),2);
 
   hardwareData.rssi = 0;            // 0 = no WiFi 
 
@@ -131,8 +131,10 @@ void setup()
   // initiate first for display of hardware error messages
   // 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
   // display.begin(THINKINK_MONO);
+  // debugMessage("screen initialized as mono",1);
   // 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
   display.begin(THINKINK_TRICOLOR);
+  debugMessage("screen initialized as tri-color",1);
   display.setRotation(DISPLAY_ROTATION);
 
   // SCD40 stops initializing below battery threshold, so detect that first
@@ -147,7 +149,7 @@ void setup()
   }
 
   // Initialize environmental sensor
-  if (!sensorInit()) {
+  if (!sensorCO2Init()) {
     debugMessage("Environment sensor failed to initialize",1);
     screenAlert(40, ((display.height()/2)+6), "No SCD40");
     // This error often occurs right after a firmware flash and reset.
@@ -156,7 +158,7 @@ void setup()
   }
 
   // Environmental sensor available, so fetch values
-  if (!sensorRead()) {
+  if (!sensorCO2Read()) {
     debugMessage("SCD40 returned no/bad data",1);
     screenAlert(40, ((display.height()/2)+6),"SCD40 read issue");
     powerDisable(HARDWARE_ERROR_INTERVAL);
@@ -267,17 +269,17 @@ void screenInfo(String messageText)
   display.setTextColor(EPD_BLACK);
 
   // screen helper routines
-  // draws battery in the upper right corner. -3 in first parameter accounts for battery nub
-  screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth-3),yMargins,batteryBarWidth, batteryBarHeight);
+  // display battery level in the upper right corner
+  screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth),yMargins,batteryBarWidth, batteryBarHeight);
 
-  // display wifi status
+  // display wifi status left offset to the battery level indicator
   screenHelperWiFiStatus((display.width() - 35), (display.height() - yMargins),wifiBarWidth,wifiBarHeightIncrement,wifiBarSpacing);
-
-  // display sparkline
-  screenHelperSparkLine(xMargins,ySparkline,(display.width() - (2* xMargins)),sparklineHeight);
 
   // draws any status message in the lower left corner. -8 in the first parameter accounts for fixed font height
   screenHelperStatusMessage(xMargins, (display.height()-yMargins-8), messageText);
+
+  // display sparkline
+  screenHelperSparkLine(xMargins,ySparkline,(display.width() - (2* xMargins)),sparklineHeight);
 
   // Indoor CO2 level
   // calculate CO2 value range in 400ppm bands
@@ -398,7 +400,7 @@ void screenHelperBatteryStatus(int initialX, int initialY, int barWidth, int bar
   if (hardwareData.batteryVoltage>0) 
   {
     // battery nub; width = 3pix, height = 60% of barHeight
-    display.fillRect((initialX+barWidth), (initialY+(int(barHeight/5))), 3, (int(barHeight*3/5)), EPD_BLACK);
+    display.fillRect((initialX+barWidth-3), (initialY+(int(barHeight/5))), 3, (int(barHeight*3/5)), EPD_BLACK);
     // battery border
     display.drawRect(initialX, initialY, barWidth, barHeight, EPD_BLACK);
     //battery percentage as rectangle fill, 1 pixel inset from the battery border
@@ -492,7 +494,7 @@ void screenHelperStatusMessage(int initialX, int initialY, String messageText)
   display.print(messageText);
 }
 
-bool sensorInit() {
+bool sensorCO2Init() {
   char errorMessage[256];
 
   #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
@@ -522,7 +524,7 @@ bool sensorInit() {
   }
 }
 
-bool sensorRead()
+bool sensorCO2Read()
 // reads SCD40 READS_PER_SAMPLE times then stores last read
 {
   char errorMessage[256];
@@ -731,7 +733,7 @@ void networkDisconnect()
 void networkGetTime()
 {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);    
-  debugMessage("NTP time: " + dateTimeString(),1);
+  debugMessage("NTP local time: " + dateTimeString(),1);
 }
 
 // Converts system time into human readable strings. Use NTP service

@@ -1,3 +1,8 @@
+/*
+  Project:      realtime_co2
+  Description:  data pair configuration
+*/
+
 #ifndef DATA_H
 #define DATA_H
 

@@ -1,6 +1,6 @@
 /*
   Project Name:   realtime_co2
-  Description:    public (non-secret) configuration data for realtime_co2
+  Description:    public (non-secret) configuration data
 */
 
 #ifndef CONFIG_H
@@ -10,10 +10,10 @@
 
 // Configuration Step 2: Set debug message output
 // comment out to turn off; 1 = summary, 2 = verbose
-//#define DEBUG 1
+#define DEBUG 1
 
 // Configuration Step 3: Set network data endpoints
-#define MQTT 		    // log sensor data to M/QTT broker
+// #define MQTT 		    // log sensor data to M/QTT broker
 // #define HASSIO_MQTT  // And, if MQTT enabled, with Home Assistant too?
 // #define INFLUX	      // Log data to InfluxDB server
 // #define DWEET        // Post info to Dweet
@@ -43,11 +43,6 @@ const long  gmtOffset_sec = -28800; // PST
 // const int   daylightOffset_sec = 0;
 const int   daylightOffset_sec = 3600; // US DT
 
-// Configuration Step 6: Set network data endpoint parameters, if applicable
-// set client ID; used by mqtt and wifi
-// structure is RCO2_room-name; e.g. RCO2_kitchen
-#define CLIENT_ID "RCO2_lab"
-
 // Specify Measurement to use with InfluxDB for sensor and device info
 #ifdef INFLUX
   #define INFLUX_ENV_MEASUREMENT "weather"  // Used for environmental sensor data
@@ -67,7 +62,7 @@ const int   daylightOffset_sec = 3600; // US DT
 #define CONNECT_ATTEMPT_LIMIT	3 // max connection attempts to internet services
 #define CONNECT_ATTEMPT_INTERVAL 10 // seconds between internet service connect attempts
 
-// Pin config for host board to Adafruit 1.5" 200x200 EPD
+// Pin config for host board to Adafruit 1.54" 200x200 EPD
 #define EPD_CS      12
 #define EPD_DC      27
 #define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
