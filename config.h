@@ -35,13 +35,8 @@
 const int   batteryReads = 5;
 
 // Configuration Step 5: Set parameters for NTP time configuration
-// this will only be used if network data endpoints are defined
 #define ntpServer "pool.ntp.org"
-// const long  gmtOffset_sec = 0; // UTC
-// const long  gmtOffset_sec = 3600; // Ireland
-const long  gmtOffset_sec = -28800; // PST
-// const int   daylightOffset_sec = 0;
-const int   daylightOffset_sec = 3600; // US DT
+#define timeZoneString "PST8PDT,M3.2.0,M11.1.0" // America/Los_Angeles
 
 // Specify Measurement to use with InfluxDB for sensor and device info
 #ifdef INFLUX
