@@ -15,7 +15,7 @@
 // Configuration Step 3: Set network data endpoints
 // #define MQTT 		    // log sensor data to M/QTT broker
 // #define HASSIO_MQTT  // And, if MQTT enabled, with Home Assistant too?
-// #define INFLUX	      // Log data to InfluxDB server
+#define INFLUX	      // Log data to InfluxDB server
 // #define DWEET        // Post info to Dweet
 
 // Configuration Step 4: Set battery parameters, if applicable

@@ -124,17 +124,18 @@ void setup()
   debugMessage("Device ID: " + String(DEVICE_ID),1);
   debugMessage(String(SAMPLE_INTERVAL) + " second sample interval",2);
 
-  hardwareData.rssi = 0;            // 0 = no WiFi 
+  hardwareData.rssi = 0;  // 0 = no WiFi 
 
   powerEnable();
 
-  // initiate first for display of hardware error messages
+  // initiate first to display hardware error messages
   // 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
   // display.begin(THINKINK_MONO);
-  // debugMessage("screen initialized as mono",1);
+  // debugMessage("mono screen initialized",1);
+
   // 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
   display.begin(THINKINK_TRICOLOR);
-  debugMessage("screen initialized as tri-color",1);
+  debugMessage("tri-color screen initialized",1);
   display.setRotation(DISPLAY_ROTATION);
 
   // SCD40 stops initializing below battery threshold, so detect that first
@@ -720,6 +721,7 @@ void networkDisconnect()
   #if defined(MQTT) || defined(INFLUX) || defined(HASSIO_MQTT)
   {
     WiFi.disconnect();
+    WiFi.mode(WIFI_OFF);
     debugMessage("Disconnected from WiFi network",1);
   }
   #endif
@@ -746,9 +748,9 @@ bool networkGetTime(String timezone)
 void setTimezone(String timezone)
 {
   debugMessage(String("setting Timezone to ") + timezone.c_str(),2);
-  setenv("TZ",timezone.c_str(),1);  //  Now adjust the TZ.  Clock settings are adjusted to show the new local time
+  setenv("TZ",timezone.c_str(),1);
   tzset();
-  debugMessage(String("Local time is:") + dateTimeString("short"),1);
+  debugMessage(String("Local time is: ") + dateTimeString("short"),1);
 }
 
 // Converts time into human readable strings
