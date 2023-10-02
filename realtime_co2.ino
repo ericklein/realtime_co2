@@ -124,17 +124,18 @@ void setup()
   debugMessage("Device ID: " + String(DEVICE_ID),1);
   debugMessage(String(SAMPLE_INTERVAL) + " second sample interval",2);
 
-  hardwareData.rssi = 0;            // 0 = no WiFi 
+  hardwareData.rssi = 0;  // 0 = no WiFi 
 
   powerEnable();
 
-  // initiate first for display of hardware error messages
+  // initiate first to display hardware error messages
   // 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
   // display.begin(THINKINK_MONO);
-  // debugMessage("screen initialized as mono",1);
+  // debugMessage("mono screen initialized",1);
+
   // 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
   display.begin(THINKINK_TRICOLOR);
-  debugMessage("screen initialized as tri-color",1);
+  debugMessage("tri-color screen initialized",1);
   display.setRotation(DISPLAY_ROTATION);
 
   // SCD40 stops initializing below battery threshold, so detect that first
@@ -172,12 +173,11 @@ void setup()
   co2Samples[storedCounter] = sensorData.ambientCO2;
   nvStorageWrite(storedCounter);
 
-  networkConnect();
-
-  String upd_flags = "";  // Indicates whether/which external data services were updated
-  if (hardwareData.rssi!=0)
+  if (networkConnect())
   {
-    networkGetTime();
+    String upd_flags = "";  // Indicates whether/which external data services were updated
+
+    networkGetTime(timeZoneString);
     // Update external data services
     #ifdef MQTT
       if ((mqttSensorTemperatureFUpdate(sensorData.ambientTemperatureF)) && (mqttSensorHumidityUpdate(sensorData.ambientHumidity)) && (mqttSensorCO2Update(sensorData.ambientCO2)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage)))
@@ -204,27 +204,23 @@ void setup()
     #ifdef DWEET
       // Fire and forget posting of device & sensor status via Dweet.io (no update flags)
       post_dweet(sensorData.ambientCO2, sensorData.ambientTemperatureF, sensorData.ambientHumidity, hardwareData.batteryVoltage, hardwareData.rssi);
+      upd_flags += "D";
     #endif
-
     if (upd_flags == "") 
     {
       // External data services not updated but we have network time
-      screenInfo(dateTimeString());
+      screenInfo(dateTimeString("short"));
     } 
     else 
     {
       // External data services updated and we have network time
-      screenInfo("[+" + upd_flags + "] " + dateTimeString());
+      screenInfo("[+" + upd_flags + "] " + dateTimeString("short"));
     }
   }
   else
   {
     // no internet connection, update screen with sensor data only
-    #ifdef DEBUG
-      screenInfo("debug mode, no internet");
-    #else
-      screenInfo("");
-    #endif
+    screenInfo("");
   }
   powerDisable(SAMPLE_INTERVAL);
 }
@@ -725,83 +721,77 @@ void networkDisconnect()
   #if defined(MQTT) || defined(INFLUX) || defined(HASSIO_MQTT)
   {
     WiFi.disconnect();
+    WiFi.mode(WIFI_OFF);
     debugMessage("Disconnected from WiFi network",1);
   }
   #endif
 }
 
-void networkGetTime()
+bool networkGetTime(String timezone)
 {
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);    
-  debugMessage("NTP local time: " + dateTimeString(),1);
+  https://randomnerdtutorials.com/esp32-ntp-timezones-daylight-saving/
+
+  struct tm timeinfo;
+
+  // connect to NTP server with 0 TZ offset
+  configTime(0, 0, ntpServer);
+  if(!getLocalTime(&timeinfo))
+  {
+    debugMessage("Failed to obtain time from NPT Server",1);
+    return false;
+  }
+  // set local timezone
+  setTimezone(timezone);
+  return true;
 }
 
-// Converts system time into human readable strings. Use NTP service
-String dateTimeString() {
+void setTimezone(String timezone)
+{
+  debugMessage(String("setting Timezone to ") + timezone.c_str(),2);
+  setenv("TZ",timezone.c_str(),1);
+  tzset();
+  debugMessage(String("Local time is: ") + dateTimeString("short"),1);
+}
+
+// Converts time into human readable strings
+String dateTimeString(String formatType)
+{
+  // https://cplusplus.com/reference/ctime/tm/
+
   String dateTime;
+  struct tm timeInfo;
 
-  #if defined(MQTT) || defined(INFLUX) || defined(HASSIO_MQTT)
-    struct tm timeInfo;
-    if (getLocalTime(&timeInfo)) {
-      int day = timeInfo.tm_wday;
-      // int month = timeInfo.tm_mon;
-      // int year = timeInfo.tm_year + 1900;
-      int hour = timeInfo.tm_hour;
-      int minutes = timeInfo.tm_min;
-      // int seconds = timeinfo.tm_sec;
-
+  if (getLocalTime(&timeInfo)) 
+  {
+    if (formatType == "short")
+    {
       // short human readable format
-      dateTime = weekDays[day];
+      dateTime = weekDays[timeInfo.tm_wday];
       dateTime += " at ";
-      if (hour < 10) dateTime += "0";
-      dateTime += hour;
+      if (timeInfo.tm_hour < 10) dateTime += "0";
+      dateTime += timeInfo.tm_hour;
       dateTime += ":";
-      if (minutes < 10) dateTime += "0";
-      dateTime += minutes;
-
+      if (timeInfo.tm_min < 10) dateTime += "0";
+      dateTime += timeInfo.tm_min;
+    }
+    else if (formatType == "long")
+    {
       // long human readable
-      // dateTime = weekDays[day];
-      // dateTime += ", ";
-
-      // if (month<10) dateTime += "0";
-      // dateTime += month;
-      // dateTime += "-";
-      // if (day<10) dateTime += "0";
-      // dateTime += day;
-      // dateTime += " at ";
-      // if (hour<10) dateTime += "0";
-      // dateTime += hour;
-      // dateTime += ":";
-      // if (minutes<10) dateTime += "0";
-      // dateTime += minutes;
-
-      // zulu format
-      // dateTime = year + "-";
-      // if (month()<10) dateTime += "0";
-      // dateTime += month;
-      // dateTime += "-";
-      // if (day()<10) dateTime += "0";
-      // dateTime += day;
-      // dateTime += "T";
-      // if (hour<10) dateTime += "0";
-      // dateTime += hour;
-      // dateTime += ":";
-      // if (minutes<10) dateTime += "0";
-      // dateTime += minutes;
-      // dateTime += ":";
-      // if (seconds<10) dateTime += "0";
-      // dateTime += seconds;
-      // switch (gmtOffset_sec)
-      // {
-      //   case 0:
-      //     dateTime += "Z";
-      //     break;
-      //   case -28800:
-      //     dateTime += "PDT";
-      //     break;
-      // }
-    } 
-    else dateTime = "Can't reach time service";
-  #endif
+      dateTime = weekDays[timeInfo.tm_wday];
+      dateTime += ", ";
+      if (timeInfo.tm_mon<10) dateTime += "0";
+      dateTime += timeInfo.tm_mon;
+      dateTime += "-";
+      if (timeInfo.tm_wday<10) dateTime += "0";
+      dateTime += timeInfo.tm_wday;
+      dateTime += " at ";
+      if (timeInfo.tm_hour<10) dateTime += "0";
+      dateTime += timeInfo.tm_hour;
+      dateTime += ":";
+      if (timeInfo.tm_min<10) dateTime += "0";
+      dateTime += timeInfo.tm_min;
+    }
+  }
+  else dateTime = "Can't reach time service";
   return dateTime;
 }
