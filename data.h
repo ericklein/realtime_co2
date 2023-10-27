@@ -23,7 +23,7 @@
 // as parts of MQTT topics.  Must be unique, and must conform
 // to syntax required for field keys by InfluxDB and MQTT.
 
-#define VALUE_KEY_TEMPERATURE     "temperature"
+#define VALUE_KEY_TEMPERATURE     "tempF"
 #define VALUE_KEY_HUMIDITY        "humidity"
 #define VALUE_KEY_CO2             "co2"
 // #define VALUE_KEY_PRESSURE     "pressure"

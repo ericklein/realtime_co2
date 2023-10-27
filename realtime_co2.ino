@@ -56,7 +56,8 @@ SensirionI2CScd4x envSensor;
 Adafruit_LC709203F lc;
 
 // screen support
-#include <Adafruit_ThinkInk.h>
+#include <GxEPD2_BW.h>
+GxEPD2_BW<GxEPD2_154_D67, GxEPD2_154_D67::HEIGHT> display(GxEPD2_154_D67(EPD_CS, EPD_DC, EPD_RESET, EPD_BUSY)); // GDEH0154D67
 
 #include "Fonts/meteocons16pt7b.h"
 #include <Fonts/FreeSans9pt7b.h>
@@ -65,11 +66,6 @@ Adafruit_LC709203F lc;
 
 // Special glyphs for the UI
 #include "glyphs.h"
-
-// 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
-// ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
-// 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
-ThinkInk_154_Tricolor_Z90 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
 // screen layout assists
 const int xMargins = 10;
@@ -129,13 +125,9 @@ void setup()
   powerEnable();
 
   // initiate first to display hardware error messages
-  // 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
-  // display.begin(THINKINK_MONO);
-  // debugMessage("mono screen initialized",1);
+  //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
+  display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
 
-  // 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
-  display.begin(THINKINK_TRICOLOR);
-  debugMessage("tri-color screen initialized",1);
   display.setRotation(DISPLAY_ROTATION);
 
   // SCD40 stops initializing below battery threshold, so detect that first
@@ -244,14 +236,18 @@ void screenAlert(int initialX, int initialY, String messageText)
 {
   debugMessage("screenAlert refresh started",1);
 
-  display.clearBuffer();
-  display.setTextColor(EPD_BLACK);
+  display.setTextColor(GxEPD_BLACK);
   display.setFont(&FreeSans12pt7b);
   display.setCursor(initialX, initialY);
-  display.print(messageText);
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+    display.print(messageText);
+  }
+  while (display.nextPage());
 
-  //update display
-  display.display();
   debugMessage("screenAlert refresh complete",1);
 }
 
@@ -261,61 +257,67 @@ void screenInfo(String messageText)
 {
   debugMessage("screenInfo refresh started",1);
   
-  display.clearBuffer();
-  display.setTextColor(EPD_BLACK);
+  display.setTextColor(GxEPD_BLACK);
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+    // screen helper routines
+    // display battery level in the upper right corner
+    screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth),yMargins,batteryBarWidth, batteryBarHeight);
 
-  // screen helper routines
-  // display battery level in the upper right corner
-  screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth),yMargins,batteryBarWidth, batteryBarHeight);
+    // display wifi status left offset to the battery level indicator
+    screenHelperWiFiStatus((display.width() - 35), (display.height() - yMargins),wifiBarWidth,wifiBarHeightIncrement,wifiBarSpacing);
 
-  // display wifi status left offset to the battery level indicator
-  screenHelperWiFiStatus((display.width() - 35), (display.height() - yMargins),wifiBarWidth,wifiBarHeightIncrement,wifiBarSpacing);
+    // draws any status message in the lower left corner. -8 in the first parameter accounts for fixed font height
+    screenHelperStatusMessage(xMargins, (display.height()-yMargins-8), messageText);
 
-  // draws any status message in the lower left corner. -8 in the first parameter accounts for fixed font height
-  screenHelperStatusMessage(xMargins, (display.height()-yMargins-8), messageText);
+    // display sparkline
+    screenHelperSparkLine(xMargins,ySparkline,(display.width() - (2* xMargins)),sparklineHeight);
 
-  // display sparkline
-  screenHelperSparkLine(xMargins,ySparkline,(display.width() - (2* xMargins)),sparklineHeight);
+    // Indoor CO2 level
+    // calculate CO2 value range in 400ppm bands
+    int co2range = ((sensorData.ambientCO2 - 400) / 400);
+    co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
 
-  // Indoor CO2 level
-  // calculate CO2 value range in 400ppm bands
-  int co2range = ((sensorData.ambientCO2 - 400) / 400);
-  co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
-
-  display.setFont(&FreeSans18pt7b);
-  display.setCursor(xMargins, yCO2);
-  display.print("CO");
-  display.setCursor(xMargins+65,yCO2);
-  display.print(": " + String(co2Labels[co2range]));
-  display.setFont(&FreeSans12pt7b);
-  display.setCursor(xMargins+50,yCO2+10);
-  display.print("2");
-  display.setCursor((xMargins+90),yCO2+25);
-  display.print("(" + String(sensorData.ambientCO2) + ")");
-
-  // Indoor temp
-  int temperatureF = sensorData.ambientTemperatureF + 0.5;
-  display.setFont(&FreeSans18pt7b);
-  if(temperatureF < 100) {
-    display.setCursor(xMargins,yTemperature);
-    display.print(String(temperatureF));
-    display.drawBitmap(xMargins+42,yTemperature-21,epd_bitmap_temperatureF_icon_sm,20,28,EPD_BLACK);
-  }
-  else {
-    display.setCursor(xMargins,yTemperature);
-    display.print(String(temperatureF));
+    display.setFont(&FreeSans18pt7b);
+    display.setCursor(xMargins, yCO2);
+    display.print("CO");
+    display.setCursor(xMargins+65,yCO2);
+    display.print(": " + String(co2Labels[co2range]));
     display.setFont(&FreeSans12pt7b);
-    display.setCursor(xMargins+65,yTemperature);
-    display.print("F"); 
+    display.setCursor(xMargins+50,yCO2+10);
+    display.print("2");
+    display.setCursor((xMargins+90),yCO2+25);
+    display.print("(" + String(sensorData.ambientCO2) + ")");
+
+    // Indoor temp
+    int temperatureF = sensorData.ambientTemperatureF + 0.5;
+    display.setFont(&FreeSans18pt7b);
+    if(temperatureF < 100)
+    {
+      display.setCursor(xMargins,yTemperature);
+      display.print(String(temperatureF));
+      display.drawBitmap(xMargins+42,yTemperature-21,epd_bitmap_temperatureF_icon_sm,20,28,GxEPD_BLACK);
+    }
+    else 
+    {
+      display.setCursor(xMargins,yTemperature);
+      display.print(String(temperatureF));
+      display.setFont(&FreeSans12pt7b);
+      display.setCursor(xMargins+65,yTemperature);
+      display.print("F"); 
+    }
+
+    // Indoor humidity
+    display.setFont(&FreeSans18pt7b);
+    display.setCursor(display.width()/2, yTemperature);
+    display.print(String((int)(sensorData.ambientHumidity + 0.5)));
+    display.drawBitmap(display.width()/2+42,yTemperature-21,epd_bitmap_humidity_icon_sm4,20,28,GxEPD_BLACK);
   }
+  while (display.nextPage());
 
-  // Indoor humidity
-  display.setFont(&FreeSans18pt7b);
-  display.setCursor(display.width()/2, yTemperature);
-  display.print(String((int)(sensorData.ambientHumidity + 0.5)));
-  display.drawBitmap(display.width()/2+42,yTemperature-21,epd_bitmap_humidity_icon_sm4,20,28,EPD_BLACK);
-
-  display.display();
   debugMessage("screenInfo refresh complete",1);
 }
 
@@ -396,11 +398,11 @@ void screenHelperBatteryStatus(int initialX, int initialY, int barWidth, int bar
   if (hardwareData.batteryVoltage>0) 
   {
     // battery nub; width = 3pix, height = 60% of barHeight
-    display.fillRect((initialX+barWidth-3), (initialY+(int(barHeight/5))), 3, (int(barHeight*3/5)), EPD_BLACK);
+    display.fillRect((initialX+barWidth-3), (initialY+(int(barHeight/5))), 3, (int(barHeight*3/5)), GxEPD_BLACK);
     // battery border
-    display.drawRect(initialX, initialY, barWidth, barHeight, EPD_BLACK);
+    display.drawRect(initialX, initialY, barWidth, barHeight, GxEPD_BLACK);
     //battery percentage as rectangle fill, 1 pixel inset from the battery border
-    display.fillRect((initialX + 2), (initialY + 2), int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))), (barHeight - 4), EPD_BLACK);
+    display.fillRect((initialX + 2), (initialY + 2), int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))), (barHeight - 4), GxEPD_BLACK);
     debugMessage(String("battery percent visualized=") + hardwareData.batteryPercent + "%, " + int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))) + " pixels of " + (barWidth-4) + " max",1);
   }
   else
@@ -436,7 +438,7 @@ void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
   debugMessage(String("xPixelStep is ") + xPixelStep + ", yPixelStep is " + yPixelStep,2);
 
   // sparkline border box (if needed)
-  //display.drawRect(xMargins,ySparkline, ((display.width()) - (2 * xMargins)),sparklineHeight, EPD_BLACK);
+  //display.drawRect(xMargins,ySparkline, ((display.width()) - (2 * xMargins)),sparklineHeight, GxEPD_BLACK);
 
   // determine sparkline x,y values
   for(int i=0;i<co2MaxStoredSamples;i++)
@@ -445,7 +447,7 @@ void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
     sparkLineY[i] = ((yStart + yHeight) - (int)((co2Samples[i]-co2Min) / yPixelStep));
     // draw/extend sparkline after first value is generated
     if (i != 0)
-      display.drawLine(sparkLineX[i-1],sparkLineY[i-1],sparkLineX[i],sparkLineY[i],EPD_BLACK);  
+      display.drawLine(sparkLineX[i-1],sparkLineY[i-1],sparkLineX[i],sparkLineY[i],GxEPD_BLACK);  
   }
   for (int i=0;i<co2MaxStoredSamples;i++)
   {
@@ -468,7 +470,7 @@ void screenHelperWiFiStatus(int initialX, int initialY, int barWidth, int barHei
       // draw bars to represent WiFi strength
       for (int b = 1; b <= barCount; b++)
       {
-        display.fillRect((initialX + (b * barSpacingMultipler)), (initialY - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, EPD_BLACK);
+        display.fillRect((initialX + (b * barSpacingMultipler)), (initialY - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, GxEPD_BLACK);
       }
       debugMessage(String("WiFi signal strength on screen as ") + barCount +" bars",2);
     }
@@ -596,12 +598,10 @@ void powerEnable()
 void powerDisable(int deepSleepTime)
 // Powers down hardware in preparation for board deep sleep
 {
-  char errorMessage[256];
-
   debugMessage("Starting power down activities",1);
+  
   // power down epd
-  display.powerDown();
-  digitalWrite(EPD_RESET, LOW);  // hardware power down mode
+  display.powerOff();
   debugMessage("powered down epd",1);
 
   networkDisconnect();
@@ -611,6 +611,7 @@ void powerDisable(int deepSleepTime)
   // stops potentially started measurement then powers down SCD40
   uint16_t error = envSensor.stopPeriodicMeasurement();
   if (error) {
+    char errorMessage[256];
     errorToString(error, errorMessage, 256);
     debugMessage(String(errorMessage) + " executing SCD40 stopPeriodicMeasurement()",1);
   }
@@ -737,15 +738,15 @@ bool networkGetTime(String timezone)
   configTime(0, 0, ntpServer);
   if(!getLocalTime(&timeinfo))
   {
-    debugMessage("Failed to obtain time from NPT Server",1);
+    debugMessage("Failed to obtain time from NTP Server",1);
     return false;
   }
   // set local timezone
-  setTimezone(timezone);
+  setTimeZone(timezone);
   return true;
 }
 
-void setTimezone(String timezone)
+void setTimeZone(String timezone)
 {
   debugMessage(String("setting Timezone to ") + timezone.c_str(),2);
   setenv("TZ",timezone.c_str(),1);
