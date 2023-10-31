@@ -66,7 +66,7 @@
     // Attempts influxDB connection, and if unsuccessful, re-attempts after CONNECT_ATTEMPT_INTERVAL second delay for CONNECT_ATTEMPT_LIMIT times
     for (int tries = 1; tries <= CONNECT_ATTEMPT_LIMIT; tries++) {
       if (dbclient.validateConnection()) {
-        debugMessage(String("Connected to InfluxDB: ") + dbclient.getServerUrl(),1);
+        debugMessage(String("Connected to InfluxDB: ") + dbclient.getServerUrl(),2);
         result = true;
         break;
       }

@@ -116,7 +116,7 @@ void setup()
     while (!Serial);
   #endif
 
-  debugMessage("realtime co2 monitor started",1);
+  debugMessage("realtime_co2 started",1);
   debugMessage("Device ID: " + String(DEVICE_ID),1);
   debugMessage(String(SAMPLE_INTERVAL) + " second sample interval",2);
 
@@ -264,8 +264,8 @@ void screenInfo(String messageText)
   {
     display.fillScreen(GxEPD_WHITE);
     // screen helper routines
-    // display battery level in the upper right corner
-    screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth),yMargins,batteryBarWidth, batteryBarHeight);
+    // display battery level in the upper right corner, -3 in first parameter accounts for battery nub
+    screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth-3),yMargins,batteryBarWidth, batteryBarHeight);
 
     // display wifi status left offset to the battery level indicator
     screenHelperWiFiStatus((display.width() - 35), (display.height() - yMargins),wifiBarWidth,wifiBarHeightIncrement,wifiBarSpacing);
@@ -386,7 +386,6 @@ int batteryGetChargeLevel(float volts)
       break;
     }
   }
-  debugMessage(String("Battery percentage as int is ")+idx+"%",1);
   return idx;
 }
 
@@ -398,15 +397,15 @@ void screenHelperBatteryStatus(int initialX, int initialY, int barWidth, int bar
   if (hardwareData.batteryVoltage>0) 
   {
     // battery nub; width = 3pix, height = 60% of barHeight
-    display.fillRect((initialX+barWidth-3), (initialY+(int(barHeight/5))), 3, (int(barHeight*3/5)), GxEPD_BLACK);
+    display.fillRect((initialX+barWidth), (initialY+(int(barHeight/5))), 3, (int(barHeight*3/5)), GxEPD_BLACK);
     // battery border
     display.drawRect(initialX, initialY, barWidth, barHeight, GxEPD_BLACK);
     //battery percentage as rectangle fill, 1 pixel inset from the battery border
     display.fillRect((initialX + 2), (initialY + 2), int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))), (barHeight - 4), GxEPD_BLACK);
-    debugMessage(String("battery percent visualized=") + hardwareData.batteryPercent + "%, " + int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))) + " pixels of " + (barWidth-4) + " max",1);
+    debugMessage(String("battery: ") + hardwareData.batteryPercent + "%, " + int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))) + " of " + (barWidth-4) + " pixels",1);
   }
   else
-    debugMessage("No battery voltage for screenHelperBatteryStatus() to render",1);
+    debugMessage("No battery voltage for screenHelperBatteryStatus to render",1);
 }
 
 void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
@@ -431,11 +430,11 @@ void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
     if(co2Samples[i] > co2Max) co2Max = co2Samples[i];
     if(co2Samples[i] < co2Min) co2Min = co2Samples[i];
   }
-  debugMessage(String("Max CO2 in stored sample range is ") + co2Max +", min is " + co2Min,2);
+  debugMessage(String("Max CO2 in stored sample range: ") + co2Max +", min: " + co2Min,2);
  
   // vertical distance (pixels) between each displayed co2 value
   yPixelStep = round(((co2Max - co2Min) / yHeight)+.5);
-  debugMessage(String("xPixelStep is ") + xPixelStep + ", yPixelStep is " + yPixelStep,2);
+  debugMessage(String("xPixelStep: ") + xPixelStep + ", yPixelStep: " + yPixelStep,2);
 
   // sparkline border box (if needed)
   //display.drawRect(xMargins,ySparkline, ((display.width()) - (2 * xMargins)),sparklineHeight, GxEPD_BLACK);
@@ -451,7 +450,7 @@ void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
   }
   for (int i=0;i<co2MaxStoredSamples;i++)
   {
-    debugMessage(String("X,Y coordinates for CO2 sample ") + i + " is " + sparkLineX[i] + "," + sparkLineY[i],2);
+    debugMessage(String("X,Y coordinates for CO2 sample ") + i + ": " + sparkLineX[i] + "," + sparkLineY[i],2);
   }
     debugMessage("sparkline drawn to screen",2);
 }
@@ -517,7 +516,7 @@ bool sensorCO2Init() {
   } 
   else
   {
-    debugMessage("SCD40 initialized",2);
+    debugMessage("power on: SCD40",1);
     return true;
   }
 }
@@ -553,12 +552,13 @@ bool sensorCO2Read()
 
 void powerEnable()
 {
+  debugMessage("powerEnable started",1);
+
   // Handle two ESP32 I2C ports
   #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
-    // ESP32 is kinda odd in that secondary ports must be manually
-    // assigned their pins with setPins()!
+    // ESP32 is kinda odd in that secondary ports must be manually assigned their pins with setPins()!
     Wire1.setPins(SDA1, SCL1);
-    debugMessage("enabled ESP32 hardware with two I2C ports",2);
+    debugMessage("power on: ESP32 hardware with two I2C ports",2);
   #endif
 
   // Adafruit ESP32 I2C power management
@@ -575,7 +575,7 @@ void powerEnable()
     // if you need to turn the neopixel on
     // pinMode(NEOPIXEL_POWER, OUTPUT);
     // digitalWrite(NEOPIXEL_POWER, HIGH);
-    debugMessage("enabled Adafruit Feather ESP32S2 I2C power",1);
+    debugMessage("power on: Feather ESP32S2 I2C",1);
   #endif
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2_TFT)
@@ -591,18 +591,18 @@ void powerEnable()
     // Turn on neopixel
     // pinMode(NEOPIXEL_POWER, OUTPUT);
     // digitalWrite(NEOPIXEL_POWER, HIGH);
-    debugMessage("enabled Adafruit Feather ESP32 V2 I2C power",1);
+    debugMessage("power on: Feather ESP32V2 I2C",1);
   #endif
 }
 
 void powerDisable(int deepSleepTime)
 // Powers down hardware in preparation for board deep sleep
 {
-  debugMessage("Starting power down activities",1);
+  debugMessage("powerDisable started",1);
   
   // power down epd
   display.powerOff();
-  debugMessage("powered down epd",1);
+  debugMessage("power off: EPD",1);
 
   networkDisconnect();
 
@@ -616,7 +616,7 @@ void powerDisable(int deepSleepTime)
     debugMessage(String(errorMessage) + " executing SCD40 stopPeriodicMeasurement()",1);
   }
   envSensor.powerDown();
-  debugMessage("SCD40 powered down",1);
+  debugMessage("power off: SCD40",1);
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
     // Turn off the I2C power
@@ -626,7 +626,7 @@ void powerDisable(int deepSleepTime)
     // if you need to turn the neopixel off
     // pinMode(NEOPIXEL_POWER, OUTPUT);
     // digitalWrite(NEOPIXEL_POWER, LOW);
-    debugMessage("disabled Adafruit Feather ESP32 V2 I2C power",1);
+    debugMessage("power off: ESP32V2 I2C",1);
   #endif
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2)
@@ -637,11 +637,11 @@ void powerDisable(int deepSleepTime)
     // if you need to turn the neopixel off
     // pinMode(NEOPIXEL_POWER, OUTPUT);
     // digitalWrite(NEOPIXEL_POWER, LOW);
-    debugMessage("disabled Adafruit Feather ESP32S2 I2C power",1);
+    debugMessage("power off: ESP32S2 I2C",1);
   #endif
 
   esp_sleep_enable_timer_wakeup(deepSleepTime*1000000); // ESP microsecond modifier
-  debugMessage(String("Starting ESP32 deep sleep for ") + (deepSleepTime) + " seconds",1);
+  debugMessage(String("powerDisable complete: ESP32 deep sleep for ") + (deepSleepTime) + " seconds",1);
   esp_deep_sleep_start();
 }
 
@@ -675,7 +675,7 @@ int nvStorageRead()
     nvStoreBaseName = "co2Sample" + String(i);
     // get previously stored values. If they don't exist, create them as 400 (CO2 floor)
     co2Samples[i] = nvStorage.getLong(nvStoreBaseName.c_str(),400);
-    debugMessage(String(nvStoreBaseName) + " retrieved from nv storage is " + co2Samples[i],2);
+    debugMessage(String(nvStoreBaseName) + " retrieved from nv storage: " + co2Samples[i],2);
   }
   return storedCounter;
 }
@@ -705,8 +705,9 @@ bool networkConnect()
       if (WiFi.status() == WL_CONNECTED)
       {
         hardwareData.rssi = abs(WiFi.RSSI());
-        debugMessage(String("WiFi IP address lease from ") + WIFI_SSID + " is " + WiFi.localIP().toString(),1);
-        debugMessage(String("WiFi RSSI is: ") + hardwareData.rssi + " dBm",1);
+        debugMessage("power on: WiFi",1);
+        debugMessage(String("WiFi IP address from ") + WIFI_SSID + ": " + WiFi.localIP().toString(),1);
+        debugMessage(String("WiFi RSSI: ") + hardwareData.rssi + " dBm",1);
         return true;
       }
       debugMessage(String("Connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " to " + WIFI_SSID + " failed",1);
@@ -723,7 +724,7 @@ void networkDisconnect()
   {
     WiFi.disconnect();
     WiFi.mode(WIFI_OFF);
-    debugMessage("Disconnected from WiFi network",1);
+    debugMessage("power off: WiFi",1);
   }
   #endif
 }
@@ -751,7 +752,7 @@ void setTimeZone(String timezone)
   debugMessage(String("setting Timezone to ") + timezone.c_str(),2);
   setenv("TZ",timezone.c_str(),1);
   tzset();
-  debugMessage(String("Local time is: ") + dateTimeString("short"),1);
+  debugMessage(String("Local time: ") + dateTimeString("short"),1);
 }
 
 // Converts time into human readable strings

@@ -10,7 +10,7 @@
 
 // Configuration Step 2: Set debug message output
 // comment out to turn off; 1 = summary, 2 = verbose
-#define DEBUG 1
+#define DEBUG 0
 
 // Configuration Step 3: Set network data endpoints
 // #define MQTT 		    // log sensor data to M/QTT broker
@@ -69,9 +69,8 @@ const int   batteryReads = 5;
 #define ENABLE_GxEPD2_GFX 1
 
 // Allow for adjustable screen as needed for physical packaging. 
-// rotation 1 orients the display so the wiring is at the top
-// rotation of 3 flips it so the wiring is at the bottom
-#define DISPLAY_ROTATION 1
+// rotation 0 orients as "top" near flex cable
+#define DISPLAY_ROTATION 0
 
 // SCD40 sample timing
 #ifdef DEBUG
