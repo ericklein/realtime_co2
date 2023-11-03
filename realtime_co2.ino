@@ -56,7 +56,8 @@ SensirionI2CScd4x envSensor;
 Adafruit_LC709203F lc;
 
 // screen support
-#include <Adafruit_ThinkInk.h>
+#include <GxEPD2_BW.h>
+GxEPD2_BW<GxEPD2_154_D67, GxEPD2_154_D67::HEIGHT> display(GxEPD2_154_D67(EPD_CS, EPD_DC, EPD_RESET, EPD_BUSY)); // GDEH0154D67
 
 #include "Fonts/meteocons16pt7b.h"
 #include <Fonts/FreeSans9pt7b.h>
@@ -65,11 +66,6 @@ Adafruit_LC709203F lc;
 
 // Special glyphs for the UI
 #include "glyphs.h"
-
-// 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
-// ThinkInk_154_Mono_D67 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
-// 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
-ThinkInk_154_Tricolor_Z90 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
 // screen layout assists
 const int xMargins = 10;
@@ -120,22 +116,17 @@ void setup()
     while (!Serial);
   #endif
 
-  debugMessage("realtime co2 monitor started",1);
-  debugMessage("Device ID: " + String(DEVICE_ID),1);
+  debugMessage("realtime_co2 Device ID: " + String(DEVICE_ID),1);
   debugMessage(String(SAMPLE_INTERVAL) + " second sample interval",2);
 
   hardwareData.rssi = 0;  // 0 = no WiFi 
 
-  powerEnable();
+  powerI2CEnable();
 
   // initiate first to display hardware error messages
-  // 1.54" Monochrome display with 200x200 pixels and SSD1681 chipset
-  // display.begin(THINKINK_MONO);
-  // debugMessage("mono screen initialized",1);
+  //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
+  display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
 
-  // 1.54" tr-color display with 200x200 pixels and SSD1681 chipset
-  display.begin(THINKINK_TRICOLOR);
-  debugMessage("tri-color screen initialized",1);
   display.setRotation(DISPLAY_ROTATION);
 
   // SCD40 stops initializing below battery threshold, so detect that first
@@ -244,14 +235,18 @@ void screenAlert(int initialX, int initialY, String messageText)
 {
   debugMessage("screenAlert refresh started",1);
 
-  display.clearBuffer();
-  display.setTextColor(EPD_BLACK);
+  display.setTextColor(GxEPD_BLACK);
   display.setFont(&FreeSans12pt7b);
   display.setCursor(initialX, initialY);
-  display.print(messageText);
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+    display.print(messageText);
+  }
+  while (display.nextPage());
 
-  //update display
-  display.display();
   debugMessage("screenAlert refresh complete",1);
 }
 
@@ -261,61 +256,67 @@ void screenInfo(String messageText)
 {
   debugMessage("screenInfo refresh started",1);
   
-  display.clearBuffer();
-  display.setTextColor(EPD_BLACK);
+  display.setTextColor(GxEPD_BLACK);
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+    // screen helper routines
+    // display battery level in the upper right corner, -3 in first parameter accounts for battery nub
+    screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth-3),yMargins,batteryBarWidth, batteryBarHeight);
 
-  // screen helper routines
-  // display battery level in the upper right corner
-  screenHelperBatteryStatus((display.width()-xMargins-batteryBarWidth),yMargins,batteryBarWidth, batteryBarHeight);
+    // display wifi status left offset to the battery level indicator
+    screenHelperWiFiStatus((display.width() - 35), (display.height() - yMargins),wifiBarWidth,wifiBarHeightIncrement,wifiBarSpacing);
 
-  // display wifi status left offset to the battery level indicator
-  screenHelperWiFiStatus((display.width() - 35), (display.height() - yMargins),wifiBarWidth,wifiBarHeightIncrement,wifiBarSpacing);
+    // draws any status message in the lower left corner. -8 in the first parameter accounts for fixed font height
+    screenHelperStatusMessage(xMargins, (display.height()-yMargins-8), messageText);
 
-  // draws any status message in the lower left corner. -8 in the first parameter accounts for fixed font height
-  screenHelperStatusMessage(xMargins, (display.height()-yMargins-8), messageText);
+    // display sparkline
+    screenHelperSparkLine(xMargins,ySparkline,(display.width() - (2* xMargins)),sparklineHeight);
 
-  // display sparkline
-  screenHelperSparkLine(xMargins,ySparkline,(display.width() - (2* xMargins)),sparklineHeight);
+    // Indoor CO2 level
+    // calculate CO2 value range in 400ppm bands
+    int co2range = ((sensorData.ambientCO2 - 400) / 400);
+    co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
 
-  // Indoor CO2 level
-  // calculate CO2 value range in 400ppm bands
-  int co2range = ((sensorData.ambientCO2 - 400) / 400);
-  co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
-
-  display.setFont(&FreeSans18pt7b);
-  display.setCursor(xMargins, yCO2);
-  display.print("CO");
-  display.setCursor(xMargins+65,yCO2);
-  display.print(": " + String(co2Labels[co2range]));
-  display.setFont(&FreeSans12pt7b);
-  display.setCursor(xMargins+50,yCO2+10);
-  display.print("2");
-  display.setCursor((xMargins+90),yCO2+25);
-  display.print("(" + String(sensorData.ambientCO2) + ")");
-
-  // Indoor temp
-  int temperatureF = sensorData.ambientTemperatureF + 0.5;
-  display.setFont(&FreeSans18pt7b);
-  if(temperatureF < 100) {
-    display.setCursor(xMargins,yTemperature);
-    display.print(String(temperatureF));
-    display.drawBitmap(xMargins+42,yTemperature-21,epd_bitmap_temperatureF_icon_sm,20,28,EPD_BLACK);
-  }
-  else {
-    display.setCursor(xMargins,yTemperature);
-    display.print(String(temperatureF));
+    display.setFont(&FreeSans18pt7b);
+    display.setCursor(xMargins, yCO2);
+    display.print("CO");
+    display.setCursor(xMargins+65,yCO2);
+    display.print(": " + String(co2Labels[co2range]));
     display.setFont(&FreeSans12pt7b);
-    display.setCursor(xMargins+65,yTemperature);
-    display.print("F"); 
+    display.setCursor(xMargins+50,yCO2+10);
+    display.print("2");
+    display.setCursor((xMargins+90),yCO2+25);
+    display.print("(" + String(sensorData.ambientCO2) + ")");
+
+    // Indoor temp
+    int temperatureF = sensorData.ambientTemperatureF + 0.5;
+    display.setFont(&FreeSans18pt7b);
+    if(temperatureF < 100)
+    {
+      display.setCursor(xMargins,yTemperature);
+      display.print(String(temperatureF));
+      display.drawBitmap(xMargins+42,yTemperature-21,epd_bitmap_temperatureF_icon_sm,20,28,GxEPD_BLACK);
+    }
+    else 
+    {
+      display.setCursor(xMargins,yTemperature);
+      display.print(String(temperatureF));
+      display.setFont(&FreeSans12pt7b);
+      display.setCursor(xMargins+65,yTemperature);
+      display.print("F"); 
+    }
+
+    // Indoor humidity
+    display.setFont(&FreeSans18pt7b);
+    display.setCursor(display.width()/2, yTemperature);
+    display.print(String((int)(sensorData.ambientHumidity + 0.5)));
+    display.drawBitmap(display.width()/2+42,yTemperature-21,epd_bitmap_humidity_icon_sm4,20,28,GxEPD_BLACK);
   }
+  while (display.nextPage());
 
-  // Indoor humidity
-  display.setFont(&FreeSans18pt7b);
-  display.setCursor(display.width()/2, yTemperature);
-  display.print(String((int)(sensorData.ambientHumidity + 0.5)));
-  display.drawBitmap(display.width()/2+42,yTemperature-21,epd_bitmap_humidity_icon_sm4,20,28,EPD_BLACK);
-
-  display.display();
   debugMessage("screenInfo refresh complete",1);
 }
 
@@ -384,7 +385,6 @@ int batteryGetChargeLevel(float volts)
       break;
     }
   }
-  debugMessage(String("Battery percentage as int is ")+idx+"%",1);
   return idx;
 }
 
@@ -396,15 +396,15 @@ void screenHelperBatteryStatus(int initialX, int initialY, int barWidth, int bar
   if (hardwareData.batteryVoltage>0) 
   {
     // battery nub; width = 3pix, height = 60% of barHeight
-    display.fillRect((initialX+barWidth-3), (initialY+(int(barHeight/5))), 3, (int(barHeight*3/5)), EPD_BLACK);
+    display.fillRect((initialX+barWidth), (initialY+(int(barHeight/5))), 3, (int(barHeight*3/5)), GxEPD_BLACK);
     // battery border
-    display.drawRect(initialX, initialY, barWidth, barHeight, EPD_BLACK);
+    display.drawRect(initialX, initialY, barWidth, barHeight, GxEPD_BLACK);
     //battery percentage as rectangle fill, 1 pixel inset from the battery border
-    display.fillRect((initialX + 2), (initialY + 2), int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))), (barHeight - 4), EPD_BLACK);
-    debugMessage(String("battery percent visualized=") + hardwareData.batteryPercent + "%, " + int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))) + " pixels of " + (barWidth-4) + " max",1);
+    display.fillRect((initialX + 2), (initialY + 2), int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))), (barHeight - 4), GxEPD_BLACK);
+    debugMessage(String("battery: ") + hardwareData.batteryPercent + "%, " + int(0.5+(hardwareData.batteryPercent*((barWidth-4)/100.0))) + " of " + (barWidth-4) + " pixels",1);
   }
   else
-    debugMessage("No battery voltage for screenHelperBatteryStatus() to render",1);
+    debugMessage("No battery voltage for screenHelperBatteryStatus to render",1);
 }
 
 void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
@@ -429,14 +429,14 @@ void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
     if(co2Samples[i] > co2Max) co2Max = co2Samples[i];
     if(co2Samples[i] < co2Min) co2Min = co2Samples[i];
   }
-  debugMessage(String("Max CO2 in stored sample range is ") + co2Max +", min is " + co2Min,2);
+  debugMessage(String("Max CO2 in stored sample range: ") + co2Max +", min: " + co2Min,2);
  
   // vertical distance (pixels) between each displayed co2 value
   yPixelStep = round(((co2Max - co2Min) / yHeight)+.5);
-  debugMessage(String("xPixelStep is ") + xPixelStep + ", yPixelStep is " + yPixelStep,2);
+  debugMessage(String("xPixelStep: ") + xPixelStep + ", yPixelStep: " + yPixelStep,2);
 
   // sparkline border box (if needed)
-  //display.drawRect(xMargins,ySparkline, ((display.width()) - (2 * xMargins)),sparklineHeight, EPD_BLACK);
+  //display.drawRect(xMargins,ySparkline, ((display.width()) - (2 * xMargins)),sparklineHeight, GxEPD_BLACK);
 
   // determine sparkline x,y values
   for(int i=0;i<co2MaxStoredSamples;i++)
@@ -445,11 +445,11 @@ void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
     sparkLineY[i] = ((yStart + yHeight) - (int)((co2Samples[i]-co2Min) / yPixelStep));
     // draw/extend sparkline after first value is generated
     if (i != 0)
-      display.drawLine(sparkLineX[i-1],sparkLineY[i-1],sparkLineX[i],sparkLineY[i],EPD_BLACK);  
+      display.drawLine(sparkLineX[i-1],sparkLineY[i-1],sparkLineX[i],sparkLineY[i],GxEPD_BLACK);  
   }
   for (int i=0;i<co2MaxStoredSamples;i++)
   {
-    debugMessage(String("X,Y coordinates for CO2 sample ") + i + " is " + sparkLineX[i] + "," + sparkLineY[i],2);
+    debugMessage(String("X,Y coordinates for CO2 sample ") + i + ": " + sparkLineX[i] + "," + sparkLineY[i],2);
   }
     debugMessage("sparkline drawn to screen",2);
 }
@@ -468,7 +468,7 @@ void screenHelperWiFiStatus(int initialX, int initialY, int barWidth, int barHei
       // draw bars to represent WiFi strength
       for (int b = 1; b <= barCount; b++)
       {
-        display.fillRect((initialX + (b * barSpacingMultipler)), (initialY - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, EPD_BLACK);
+        display.fillRect((initialX + (b * barSpacingMultipler)), (initialY - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, GxEPD_BLACK);
       }
       debugMessage(String("WiFi signal strength on screen as ") + barCount +" bars",2);
     }
@@ -515,7 +515,7 @@ bool sensorCO2Init() {
   } 
   else
   {
-    debugMessage("SCD40 initialized",2);
+    debugMessage("power on: SCD40",1);
     return true;
   }
 }
@@ -549,14 +549,16 @@ bool sensorCO2Read()
   return true;
 }
 
-void powerEnable()
+void powerI2CEnable()
+// enables I2C across multiple Adafruit ESP32 variants
 {
-  // Handle two ESP32 I2C ports
+  debugMessage("powerEnable started",1);
+
+  // enable I2C on devices with two ports
   #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
-    // ESP32 is kinda odd in that secondary ports must be manually
-    // assigned their pins with setPins()!
+    // ESP32 is kinda odd in that secondary ports must be manually assigned their pins with setPins()!
     Wire1.setPins(SDA1, SCL1);
-    debugMessage("enabled ESP32 hardware with two I2C ports",2);
+    debugMessage("power on: ESP32 variant with two I2C ports",2);
   #endif
 
   // Adafruit ESP32 I2C power management
@@ -569,11 +571,7 @@ void powerEnable()
     bool polarity = digitalRead(PIN_I2C_POWER);
     pinMode(PIN_I2C_POWER, OUTPUT);
     digitalWrite(PIN_I2C_POWER, !polarity);
-
-    // if you need to turn the neopixel on
-    // pinMode(NEOPIXEL_POWER, OUTPUT);
-    // digitalWrite(NEOPIXEL_POWER, HIGH);
-    debugMessage("enabled Adafruit Feather ESP32S2 I2C power",1);
+    debugMessage("power on: Feather ESP32S2 I2C",1);
   #endif
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2_TFT)
@@ -585,62 +583,47 @@ void powerEnable()
     // Turn on the I2C power
     pinMode(NEOPIXEL_I2C_POWER, OUTPUT);
     digitalWrite(NEOPIXEL_I2C_POWER, HIGH);
-
-    // Turn on neopixel
-    // pinMode(NEOPIXEL_POWER, OUTPUT);
-    // digitalWrite(NEOPIXEL_POWER, HIGH);
-    debugMessage("enabled Adafruit Feather ESP32 V2 I2C power",1);
+    debugMessage("power on: Feather ESP32V2 I2C",1);
   #endif
 }
 
 void powerDisable(int deepSleepTime)
 // Powers down hardware in preparation for board deep sleep
 {
-  char errorMessage[256];
-
-  debugMessage("Starting power down activities",1);
+  debugMessage("powerDisable started",1);
+  
   // power down epd
-  display.powerDown();
-  digitalWrite(EPD_RESET, LOW);  // hardware power down mode
-  debugMessage("powered down epd",1);
+  display.powerOff();
+  debugMessage("power off: epd",1);
 
   networkDisconnect();
 
-  // power down SCD40
-
-  // stops potentially started measurement then powers down SCD40
+  // power down SCD40 by stopping potentially started measurement then power down SCD40
   uint16_t error = envSensor.stopPeriodicMeasurement();
   if (error) {
+    char errorMessage[256];
     errorToString(error, errorMessage, 256);
     debugMessage(String(errorMessage) + " executing SCD40 stopPeriodicMeasurement()",1);
   }
   envSensor.powerDown();
-  debugMessage("SCD40 powered down",1);
+  debugMessage("power off: SCD40",1);
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
     // Turn off the I2C power
     pinMode(NEOPIXEL_I2C_POWER, OUTPUT);
     digitalWrite(NEOPIXEL_I2C_POWER, LOW);
-
-    // if you need to turn the neopixel off
-    // pinMode(NEOPIXEL_POWER, OUTPUT);
-    // digitalWrite(NEOPIXEL_POWER, LOW);
-    debugMessage("disabled Adafruit Feather ESP32 V2 I2C power",1);
+    debugMessage("power off: ESP32V2 I2C",1);
   #endif
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32S2)
     // Rev B board is LOW to enable
     // Rev C board is HIGH to enable
     digitalWrite(PIN_I2C_POWER, LOW);
-
-    // if you need to turn the neopixel off
-    // pinMode(NEOPIXEL_POWER, OUTPUT);
-    // digitalWrite(NEOPIXEL_POWER, LOW);
-    debugMessage("disabled Adafruit Feather ESP32S2 I2C power",1);
+    debugMessage("power off: ESP32S2 I2C",1);
   #endif
 
   esp_sleep_enable_timer_wakeup(deepSleepTime*1000000); // ESP microsecond modifier
-  debugMessage(String("Starting ESP32 deep sleep for ") + (deepSleepTime) + " seconds",1);
+  debugMessage(String("powerDisable complete: ESP32 deep sleep for ") + (deepSleepTime) + " seconds",1);
   esp_deep_sleep_start();
 }
 
@@ -674,7 +657,7 @@ int nvStorageRead()
     nvStoreBaseName = "co2Sample" + String(i);
     // get previously stored values. If they don't exist, create them as 400 (CO2 floor)
     co2Samples[i] = nvStorage.getLong(nvStoreBaseName.c_str(),400);
-    debugMessage(String(nvStoreBaseName) + " retrieved from nv storage is " + co2Samples[i],2);
+    debugMessage(String(nvStoreBaseName) + " retrieved from nv storage: " + co2Samples[i],2);
   }
   return storedCounter;
 }
@@ -704,8 +687,9 @@ bool networkConnect()
       if (WiFi.status() == WL_CONNECTED)
       {
         hardwareData.rssi = abs(WiFi.RSSI());
-        debugMessage(String("WiFi IP address lease from ") + WIFI_SSID + " is " + WiFi.localIP().toString(),1);
-        debugMessage(String("WiFi RSSI is: ") + hardwareData.rssi + " dBm",1);
+        debugMessage("power on: WiFi",1);
+        debugMessage(String("WiFi IP address from ") + WIFI_SSID + ": " + WiFi.localIP().toString(),1);
+        debugMessage(String("WiFi RSSI: ") + hardwareData.rssi + " dBm",1);
         return true;
       }
       debugMessage(String("Connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " to " + WIFI_SSID + " failed",1);
@@ -722,14 +706,14 @@ void networkDisconnect()
   {
     WiFi.disconnect();
     WiFi.mode(WIFI_OFF);
-    debugMessage("Disconnected from WiFi network",1);
+    debugMessage("power off: WiFi",1);
   }
   #endif
 }
 
 bool networkGetTime(String timezone)
 {
-  https://randomnerdtutorials.com/esp32-ntp-timezones-daylight-saving/
+  // https://randomnerdtutorials.com/esp32-ntp-timezones-daylight-saving/
 
   struct tm timeinfo;
 
@@ -737,20 +721,20 @@ bool networkGetTime(String timezone)
   configTime(0, 0, ntpServer);
   if(!getLocalTime(&timeinfo))
   {
-    debugMessage("Failed to obtain time from NPT Server",1);
+    debugMessage("Failed to obtain time from NTP Server",1);
     return false;
   }
   // set local timezone
-  setTimezone(timezone);
+  setTimeZone(timezone);
   return true;
 }
 
-void setTimezone(String timezone)
+void setTimeZone(String timezone)
 {
   debugMessage(String("setting Timezone to ") + timezone.c_str(),2);
   setenv("TZ",timezone.c_str(),1);
   tzset();
-  debugMessage(String("Local time is: ") + dateTimeString("short"),1);
+  debugMessage(String("Local time: ") + dateTimeString("short"),1);
 }
 
 // Converts time into human readable strings

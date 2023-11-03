@@ -10,7 +10,7 @@
 
 // Configuration Step 2: Set debug message output
 // comment out to turn off; 1 = summary, 2 = verbose
-#define DEBUG 1
+#define DEBUG 0
 
 // Configuration Step 3: Set network data endpoints
 // #define MQTT 		    // log sensor data to M/QTT broker
@@ -57,24 +57,27 @@ const int   batteryReads = 5;
 #define CONNECT_ATTEMPT_LIMIT	3 // max connection attempts to internet services
 #define CONNECT_ATTEMPT_INTERVAL 10 // seconds between internet service connect attempts
 
-// Pin config for host board to Adafruit 1.54" 200x200 EPD
+// Pin config for host board to 1.54" 200x200 EPD
 #define EPD_CS      12
 #define EPD_DC      27
-#define SRAM_CS     14 // can set to -1 to not use a pin (uses a lot of RAM!)
-#define EPD_RESET   15 // can set to -1 and share with chip Reset (can't deep sleep)
-#define EPD_BUSY    32 // can set to -1 to not use a pin (will wait a fixed delay)
+//#define SRAM_CS     14
+#define EPD_RESET   15
+#define EPD_BUSY    32
+
+// base class GxEPD2_GFX can be used to pass references or pointers to the display instance as parameter, uses ~1.2k more code
+// enable GxEPD2_GFX base class
+#define ENABLE_GxEPD2_GFX 1
 
 // Allow for adjustable screen as needed for physical packaging. 
-// rotation 1 orients the display so the wiring is at the top
-// rotation of 3 flips it so the wiring is at the bottom
-#define DISPLAY_ROTATION 1
+// rotation 0 orients as "top" near flex cable
+#define DISPLAY_ROTATION 0
 
 // SCD40 sample timing
 #ifdef DEBUG
 	// number of times SCD40 is read, last read is the sample value
 	#define READS_PER_SAMPLE	1
-	// time between samples in seconds. Must be >=180 to protect EPD
-	#define SAMPLE_INTERVAL		180
+	// time between samples in seconds. Must be >=180 to protect 3 color EPD
+	#define SAMPLE_INTERVAL		60
 #else
 	#define READS_PER_SAMPLE	3
 	#define SAMPLE_INTERVAL 	180
