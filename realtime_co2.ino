@@ -116,13 +116,12 @@ void setup()
     while (!Serial);
   #endif
 
-  debugMessage("realtime_co2 started",1);
-  debugMessage("Device ID: " + String(DEVICE_ID),1);
+  debugMessage("realtime_co2 Device ID: " + String(DEVICE_ID),1);
   debugMessage(String(SAMPLE_INTERVAL) + " second sample interval",2);
 
   hardwareData.rssi = 0;  // 0 = no WiFi 
 
-  powerEnable();
+  powerI2CEnable();
 
   // initiate first to display hardware error messages
   //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
@@ -550,15 +549,16 @@ bool sensorCO2Read()
   return true;
 }
 
-void powerEnable()
+void powerI2CEnable()
+// enables I2C across multiple Adafruit ESP32 variants
 {
   debugMessage("powerEnable started",1);
 
-  // Handle two ESP32 I2C ports
+  // enable I2C on devices with two ports
   #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
     // ESP32 is kinda odd in that secondary ports must be manually assigned their pins with setPins()!
     Wire1.setPins(SDA1, SCL1);
-    debugMessage("power on: ESP32 hardware with two I2C ports",2);
+    debugMessage("power on: ESP32 variant with two I2C ports",2);
   #endif
 
   // Adafruit ESP32 I2C power management
@@ -571,10 +571,6 @@ void powerEnable()
     bool polarity = digitalRead(PIN_I2C_POWER);
     pinMode(PIN_I2C_POWER, OUTPUT);
     digitalWrite(PIN_I2C_POWER, !polarity);
-
-    // if you need to turn the neopixel on
-    // pinMode(NEOPIXEL_POWER, OUTPUT);
-    // digitalWrite(NEOPIXEL_POWER, HIGH);
     debugMessage("power on: Feather ESP32S2 I2C",1);
   #endif
 
@@ -587,10 +583,6 @@ void powerEnable()
     // Turn on the I2C power
     pinMode(NEOPIXEL_I2C_POWER, OUTPUT);
     digitalWrite(NEOPIXEL_I2C_POWER, HIGH);
-
-    // Turn on neopixel
-    // pinMode(NEOPIXEL_POWER, OUTPUT);
-    // digitalWrite(NEOPIXEL_POWER, HIGH);
     debugMessage("power on: Feather ESP32V2 I2C",1);
   #endif
 }
@@ -602,7 +594,7 @@ void powerDisable(int deepSleepTime)
   
   // power down epd
   display.powerOff();
-  debugMessage("power off: EPD",1);
+  debugMessage("power off: epd",1);
 
   networkDisconnect();
 
@@ -731,7 +723,7 @@ void networkDisconnect()
 
 bool networkGetTime(String timezone)
 {
-  https://randomnerdtutorials.com/esp32-ntp-timezones-daylight-saving/
+  // https://randomnerdtutorials.com/esp32-ntp-timezones-daylight-saving/
 
   struct tm timeinfo;
 
