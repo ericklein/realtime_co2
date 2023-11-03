@@ -598,9 +598,7 @@ void powerDisable(int deepSleepTime)
 
   networkDisconnect();
 
-  // power down SCD40
-
-  // stops potentially started measurement then powers down SCD40
+  // power down SCD40 by stopping potentially started measurement then power down SCD40
   uint16_t error = envSensor.stopPeriodicMeasurement();
   if (error) {
     char errorMessage[256];
@@ -614,10 +612,6 @@ void powerDisable(int deepSleepTime)
     // Turn off the I2C power
     pinMode(NEOPIXEL_I2C_POWER, OUTPUT);
     digitalWrite(NEOPIXEL_I2C_POWER, LOW);
-
-    // if you need to turn the neopixel off
-    // pinMode(NEOPIXEL_POWER, OUTPUT);
-    // digitalWrite(NEOPIXEL_POWER, LOW);
     debugMessage("power off: ESP32V2 I2C",1);
   #endif
 
@@ -625,10 +619,6 @@ void powerDisable(int deepSleepTime)
     // Rev B board is LOW to enable
     // Rev C board is HIGH to enable
     digitalWrite(PIN_I2C_POWER, LOW);
-
-    // if you need to turn the neopixel off
-    // pinMode(NEOPIXEL_POWER, OUTPUT);
-    // digitalWrite(NEOPIXEL_POWER, LOW);
     debugMessage("power off: ESP32S2 I2C",1);
   #endif
 
