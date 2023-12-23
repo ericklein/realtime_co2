@@ -15,8 +15,7 @@
 Preferences nvStorage;
 
 // environment sensor data
-typedef struct envData
-{
+typedef struct {
   float     ambientTemperatureF;
   float     ambientHumidity;     // RH [%]  
   uint16_t  ambientCO2;
@@ -26,12 +25,11 @@ envData sensorData;
 uint16_t co2Samples[co2MaxStoredSamples];
 
 // hardware status data
-typedef struct hdweData
-{
-  float batteryPercent;
-  float batteryVoltage;
-  float batteryTemperatureF;
-  int rssi;
+typedef struct {
+  float   batteryPercent;
+  float   batteryVoltage;
+  float   batteryTemperatureF;
+  uint8_t rssi;
 } hdweData;
 hdweData hardwareData;
 
@@ -48,8 +46,10 @@ hdweData hardwareData;
 #endif
 
 // initialize scd40 environment sensor
-#include <SensirionI2CScd4x.h>
-SensirionI2CScd4x envSensor;
+#ifndef SENSOR_SIMULATE
+  #include <SensirionI2CScd4x.h>
+  SensirionI2CScd4x envSensor;
+#endif
 
 // Battery voltage sensor
 #include <Adafruit_LC709203F.h>
@@ -68,24 +68,24 @@ GxEPD2_BW<GxEPD2_154_D67, GxEPD2_154_D67::HEIGHT> display(GxEPD2_154_D67(EPD_CS,
 #include "glyphs.h"
 
 // screen layout assists
-const int xMargins = 10;
-const int yMargins = 2;
-const int yCO2 = 50;
-const int ySparkline = 95;
-const int yTemperature = 170;
-const int sparklineHeight = 40;
-const int batteryBarWidth = 28;
-const int batteryBarHeight = 10;
-const int wifiBarWidth = 3;
-const int wifiBarHeightIncrement = 3;
-const int wifiBarSpacing = 5;
+const uint16_t xMargins = 10;
+const uint16_t yMargins = 2;
+const uint16_t yCO2 = 50;
+const uint16_t ySparkline = 95;
+const uint16_t yTemperature = 170;
+const uint16_t sparklineHeight = 40;
+const uint16_t batteryBarWidth = 28;
+const uint16_t batteryBarHeight = 10;
+const uint16_t wifiBarWidth = 3;
+const uint16_t wifiBarHeightIncrement = 3;
+const uint16_t wifiBarSpacing = 5;
 
 #ifdef DWEET
-  extern void post_dweet(uint16_t co2, float temperatureF, float humidity, float battv, int rssi);
+  extern void post_dweet(uint16_t co2, float temperatureF, float humidity, float battv, uint8_t rssi);
 #endif 
 
 #ifdef INFLUX
-  extern boolean post_influx(uint16_t co2, float temperatureF, float humidity, float batteryVoltage, int rssi);
+  extern boolean post_influx(uint16_t co2, float temperatureF, float humidity, float batteryVoltage, uint8_t rssi);
 #endif
 
 #ifdef MQTT
@@ -96,7 +96,7 @@ const int wifiBarSpacing = 5;
   #include <Adafruit_MQTT_Client.h>
   Adafruit_MQTT_Client aq_mqtt(&client, MQTT_BROKER, MQTT_PORT, DEVICE_ID, MQTT_USER, MQTT_PASS);
 
-  extern bool mqttDeviceWiFiUpdate(int rssi);
+  extern bool mqttDeviceWiFiUpdate(uint8_t rssi);
   extern bool mqttDeviceBatteryUpdate(float batteryVoltage);
   extern bool mqttSensorTemperatureFUpdate(float temperatureF);
   extern bool mqttSensorHumidityUpdate(float humidity);
@@ -127,12 +127,12 @@ void setup()
   //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
 
-  display.setRotation(DISPLAY_ROTATION);
+  display.setRotation(displayRotation);
 
   // SCD40 stops initializing below battery threshold, so detect that first
-  hardwareData.batteryVoltage = 0;  // 0 = no battery attached
-  batteryRead(batteryReads);
-  if (hardwareData.batteryVoltage < voltageTable[4])
+  hardwareData.batteryVoltage = 0.0;  // 0 = no battery attached
+  batteryRead(batteryReadsPerSample);
+  if (hardwareData.batteryVoltage < batteryVoltageTable[4])
   {
     debugMessage("Battery below required threshold, rebooting",1);
     screenAlert(40, ((display.height()/2)+6), "Low battery");
@@ -157,7 +157,7 @@ void setup()
   }
 
   // retrieve the historical CO2 sample data
-  int storedCounter;
+  uint8_t storedCounter;
   storedCounter = nvStorageRead();
   storedCounter++;
   // store the latest CO2 measurement in sample memory and nvStorage
@@ -168,7 +168,7 @@ void setup()
   {
     String upd_flags = "";  // Indicates whether/which external data services were updated
 
-    networkGetTime(timeZoneString);
+    networkGetTime(networkTimeZone);
     // Update external data services
     #ifdef MQTT
       if ((mqttSensorTemperatureFUpdate(sensorData.ambientTemperatureF)) && (mqttSensorHumidityUpdate(sensorData.ambientHumidity)) && (mqttSensorCO2Update(sensorData.ambientCO2)) && (mqttDeviceWiFiUpdate(hardwareData.rssi)) && (mqttDeviceBatteryUpdate(hardwareData.batteryVoltage)))
@@ -252,7 +252,6 @@ void screenAlert(int initialX, int initialY, String messageText)
 
 void screenInfo(String messageText)
 // Display environmental information
-// CO2 @ 50, temp/humid @ 125, sparkline @ 140, message/info @ 191
 {
   debugMessage("screenInfo refresh started",1);
   
@@ -277,7 +276,7 @@ void screenInfo(String messageText)
 
     // Indoor CO2 level
     // calculate CO2 value range in 400ppm bands
-    int co2range = ((sensorData.ambientCO2 - 400) / 400);
+    uint8_t co2range = ((sensorData.ambientCO2 - 400) / 400);
     co2range = constrain(co2range,0,4); // filter CO2 levels above 2400
 
     display.setFont(&FreeSans18pt7b);
@@ -320,11 +319,11 @@ void screenInfo(String messageText)
   debugMessage("screenInfo refresh complete",1);
 }
 
-void batteryRead(int reads) 
+void batteryRead(uint8_t reads)
+// sets global battery values from i2c battery monitor or analog pin value on supported boards
 {
-  // check to see if i2C monitor is available
+  // use i2c battery monitor if available
   if (lc.begin())
-  // Check battery monitoring status
   {
     debugMessage(String("Version: 0x")+lc.getICversion(),2);
     lc.setPackAPA(BATTERY_APA);
@@ -332,19 +331,20 @@ void batteryRead(int reads)
 
     hardwareData.batteryPercent = lc.cellPercent();
     hardwareData.batteryVoltage = lc.cellVoltage();
-    hardwareData.batteryTemperatureF = 32 + (1.8* lc.getCellTemperature());
+    hardwareData.batteryTemperatureF = 32 + (1.8 * lc.getCellTemperature());
   } 
   else
   {
-    // use supported boards to read voltage
+    // sample battery voltage via analog pin on supported boards
     #if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
       // modified from the Adafruit power management guide for Adafruit ESP32V2
-      float accumulatedVoltage = 0;
-      for (int loop = 0; loop < reads; loop++)
+      float accumulatedVoltage = 0.0;
+      for (uint8_t loop = 0; loop < reads; loop++)
       {
         accumulatedVoltage += analogReadMilliVolts(VBATPIN);
       }
-      hardwareData.batteryVoltage = accumulatedVoltage/reads; // we now have the average reading
+       // average the readings
+      hardwareData.batteryVoltage = accumulatedVoltage/reads;
       // convert into volts  
       hardwareData.batteryVoltage *= 2;    // we divided by 2, so multiply back
       hardwareData.batteryVoltage /= 1000; // convert to volts!
@@ -356,27 +356,26 @@ void batteryRead(int reads)
       hardwareData.batteryPercent = batteryGetChargeLevel(hardwareData.batteryVoltage);
     #endif
   }
-  if (hardwareData.batteryVoltage!=0) 
+  if (hardwareData.batteryVoltage != 0) 
   {
     debugMessage(String("Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + "%",1);
   }
 }
 
 int batteryGetChargeLevel(float volts)
+// returns battery level as a percentage
 {
-  int idx = 50;
-  int prev = 0;
-  int half = 0;
-  if (volts >= 4.2){
+  uint8_t idx = 50;
+  uint8_t prev = 0;
+  uint8_t half = 0;
+  if (volts >= 4.2)
     return 100;
-  }
-  if (volts <= 3.2){
+  if (volts <= 3.2)
     return 0;
-  }
   while(true){
     half = abs(idx - prev) / 2;
     prev = idx;
-    if(volts >= voltageTable[idx]){
+    if(volts >= batteryVoltageTable[idx]){
       idx = idx + half;
     }else{
       idx = idx - half;
@@ -388,7 +387,7 @@ int batteryGetChargeLevel(float volts)
   return idx;
 }
 
-void screenHelperBatteryStatus(int initialX, int initialY, int barWidth, int barHeight)
+void screenHelperBatteryStatus(uint16_t initialX, uint16_t initialY, uint8_t barWidth, uint8_t barHeight)
 // helper function for screenXXX() routines that draws battery charge %
 {
   // IMPROVEMENT : Screen dimension boundary checks for passed parameters
@@ -407,7 +406,7 @@ void screenHelperBatteryStatus(int initialX, int initialY, int barWidth, int bar
     debugMessage("No battery voltage for screenHelperBatteryStatus to render",1);
 }
 
-void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
+void screenHelperSparkLine(uint16_t xStart, uint16_t yStart, uint16_t xWidth, uint16_t yHeight)
 {
   // TEST ONLY: load test CO2 values
   //sparkLineTestValues(co2MaxStoredSamples);
@@ -424,10 +423,10 @@ void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
 
   // determine min/max of CO2 samples
   // could use recursive function but co2MaxStoredSamples should always be relatively small
-  for(int i=0;i<co2MaxStoredSamples;i++)
+  for(uint8_t loop = 0; loop < co2MaxStoredSamples; loop++)
   {
-    if(co2Samples[i] > co2Max) co2Max = co2Samples[i];
-    if(co2Samples[i] < co2Min) co2Min = co2Samples[i];
+    if(co2Samples[loop] > co2Max) co2Max = co2Samples[loop];
+    if(co2Samples[loop] < co2Min) co2Min = co2Samples[loop];
   }
   debugMessage(String("Max CO2 in stored sample range: ") + co2Max +", min: " + co2Min,2);
  
@@ -439,22 +438,33 @@ void screenHelperSparkLine(int xStart, int yStart, int xWidth, int yHeight)
   //display.drawRect(xMargins,ySparkline, ((display.width()) - (2 * xMargins)),sparklineHeight, GxEPD_BLACK);
 
   // determine sparkline x,y values
-  for(int i=0;i<co2MaxStoredSamples;i++)
+  for(uint8_t loop=0; loop<co2MaxStoredSamples; loop++)
   {
-    sparkLineX[i] = (xStart + (i * xPixelStep));
-    sparkLineY[i] = ((yStart + yHeight) - (int)((co2Samples[i]-co2Min) / yPixelStep));
+    sparkLineX[loop] = (xStart + (loop * xPixelStep));
+    sparkLineY[loop] = ((yStart + yHeight) - (int)((co2Samples[loop]-co2Min) / yPixelStep));
     // draw/extend sparkline after first value is generated
-    if (i != 0)
-      display.drawLine(sparkLineX[i-1],sparkLineY[i-1],sparkLineX[i],sparkLineY[i],GxEPD_BLACK);  
+    if (loop != 0)
+      display.drawLine(sparkLineX[loop-1],sparkLineY[loop-1],sparkLineX[loop],sparkLineY[loop],GxEPD_BLACK);  
   }
-  for (int i=0;i<co2MaxStoredSamples;i++)
+  for (uint8_t loop = 0; loop < co2MaxStoredSamples; loop++)
   {
-    debugMessage(String("X,Y coordinates for CO2 sample ") + i + ": " + sparkLineX[i] + "," + sparkLineY[i],2);
+    debugMessage(String("X,Y coordinates for CO2 sample ") + loop + ": " + sparkLineX[loop] + "," + sparkLineY[loop],2);
   }
     debugMessage("sparkline drawn to screen",2);
 }
 
-void screenHelperWiFiStatus(int initialX, int initialY, int barWidth, int barHeightMultiplier, int barSpacingMultipler)
+void sparkLineTestValues(uint8_t sampleSetSize)
+// generates test data to exercise the screenSparkLine function
+{
+    // generate test data
+  for(int i=0;i<sampleSetSize;i++)
+  {
+    // standard range for indoor CO2 values
+    co2Samples[i]=random(600,2400);
+  }
+}
+
+void screenHelperWiFiStatus(uint16_t initialX, uint16_t initialY, uint8_t barWidth, uint8_t barHeightMultiplier, int barSpacingMultipler)
 // helper function for screenXXX() routines that draws WiFi signal strength
 {
   if (hardwareData.rssi!=0) 
@@ -462,13 +472,13 @@ void screenHelperWiFiStatus(int initialX, int initialY, int barWidth, int barHei
     // Convert RSSI values to a 5 bar visual indicator
     // >90 means no signal
     int barCount = constrain((6-((hardwareData.rssi/10)-3)),0,5);
-    if (barCount>0)
+    if (barCount > 0)
     {
       // <50 rssi value = 5 bars, each +10 rssi value range = one less bar
       // draw bars to represent WiFi strength
-      for (int b = 1; b <= barCount; b++)
+      for (uint8_t loop = 1; loop <= barCount; loop++)
       {
-        display.fillRect((initialX + (b * barSpacingMultipler)), (initialY - (b * barHeightMultiplier)), barWidth, b * barHeightMultiplier, GxEPD_BLACK);
+        display.fillRect((initialX + (loop * barSpacingMultipler)), (initialY - (loop * barHeightMultiplier)), barWidth, loop * barHeightMultiplier, GxEPD_BLACK);
       }
       debugMessage(String("WiFi signal strength on screen as ") + barCount +" bars",2);
     }
@@ -480,7 +490,7 @@ void screenHelperWiFiStatus(int initialX, int initialY, int barWidth, int barHei
   }
 }
 
-void screenHelperStatusMessage(int initialX, int initialY, String messageText)
+void screenHelperStatusMessage(uint16_t initialX, uint16_t initialY, String messageText)
 // helper function for screenXXX() routines that draws a status message
 // uses system default font, so text drawn x+,y+ from initialX,Y
 {
@@ -491,6 +501,10 @@ void screenHelperStatusMessage(int initialX, int initialY, String messageText)
 }
 
 bool sensorCO2Init() {
+  #ifdef SENSOR_SIMULATE
+    return true;
+  #endif
+
   char errorMessage[256];
 
   #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
@@ -520,32 +534,52 @@ bool sensorCO2Init() {
   }
 }
 
+void sensorCO2Simulate()
+// Simulate ranged data from the SCD40
+// Improvement - implement stable, rapid rise and fall 
+{
+  #ifdef SENSOR_SIMULATE
+    // Temperature
+    // keep this value in C, as it is converted to F in sensorCO2Read
+    sensorData.ambientTemperatureF = random(sensorTempMin,sensorTempMax) / 100.0;
+    // Humidity
+    sensorData.ambientHumidity = random(sensorHumidityMin,sensorHumidityMax) / 100.0;
+    // CO2
+    sensorData.ambientCO2 = random(sensorCO2Min, sensorCO2Max);
+  #endif
+}
+
 bool sensorCO2Read()
 // reads SCD40 READS_PER_SAMPLE times then stores last read
 {
-  char errorMessage[256];
+  #ifdef SENSOR_SIMULATE
+    sensorCO2Simulate();
+  #else
+    char errorMessage[256];
 
-  screenAlert(40, ((display.height()/2)+6), "CO2 check");
-  for (int loop=1; loop<=READS_PER_SAMPLE; loop++)
-  {
-    // SCD40 datasheet suggests 5 second delay between SCD40 reads
-    delay(5000);
-    uint16_t error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTemperatureF, sensorData.ambientHumidity);
-    // handle SCD40 errors
-    if (error) {
-      errorToString(error, errorMessage, 256);
-      debugMessage(String(errorMessage) + " error during SCD4X read",1);
-      return false;
-    }
-    if (sensorData.ambientCO2<400 || sensorData.ambientCO2>6000)
+    screenAlert(40, ((display.height()/2)+6), "CO2 check");
+    for (uint8_t loop=1; loop<=READS_PER_SAMPLE; loop++)
     {
-      debugMessage("SCD40 CO2 reading out of range",1);
-      return false;
+      // SCD40 datasheet suggests 5 second delay between SCD40 reads
+      delay(5000);
+      uint16_t error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTemperatureF, sensorData.ambientHumidity);
+      // handle SCD40 errors
+      if (error) {
+        errorToString(error, errorMessage, 256);
+        debugMessage(String(errorMessage) + " error during SCD4X read",1);
+        return false;
+      }
+      if (sensorData.ambientCO2<400 || sensorData.ambientCO2>6000)
+      {
+        debugMessage("SCD40 CO2 reading out of range",1);
+        return false;
+      }
+      debugMessage(String("SCD40 read ") + loop + " of " + READS_PER_SAMPLE + " : " + sensorData.ambientTemperatureF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm",2);
     }
-    //convert C to F for temp
-    sensorData.ambientTemperatureF = (sensorData.ambientTemperatureF * 1.8) + 32;
-    debugMessage(String("SCD40 read ") + loop + " of " + READS_PER_SAMPLE + " : " + sensorData.ambientTemperatureF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm",1);
-  }
+  #endif
+  //convert C to F for temp
+  sensorData.ambientTemperatureF = (sensorData.ambientTemperatureF * 1.8) + 32;
+  debugMessage(String("SCD40: ") + sensorData.ambientTemperatureF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm",1);
   return true;
 }
 
@@ -587,8 +621,8 @@ void powerI2CEnable()
   #endif
 }
 
-void powerDisable(int deepSleepTime)
-// Powers down hardware in preparation for board deep sleep
+void powerDisable(uint16_t deepSleepTime)
+// turns off component hardware then puts ESP32 into deep sleep mode for specified seconds
 {
   debugMessage("powerDisable started",1);
   
@@ -627,20 +661,9 @@ void powerDisable(int deepSleepTime)
   esp_deep_sleep_start();
 }
 
-void sparkLineTestValues(int sampleSetSize)
-// generates test data to exercise the screenSparkLine function
-{
-    // generate test data
-  for(int i=0;i<sampleSetSize;i++)
-  {
-    // standard range for indoor CO2 values
-    co2Samples[i]=random(600,2400);
-  }
-}
-
 int nvStorageRead()
 {
-  int storedCounter;
+  int8_t storedCounter;
 
   nvStorage.begin("rco2", false);
   storedCounter = nvStorage.getInt("counter", -1);
@@ -652,17 +675,17 @@ int nvStorageRead()
   debugMessage(String("Retrieved CO2 sample pointer is: ") + storedCounter,2);
 
   String nvStoreBaseName;
-  for (int i=0; i<co2MaxStoredSamples; i++)
+  for (uint8_t loop = 0; loop<co2MaxStoredSamples; loop++)
   {
-    nvStoreBaseName = "co2Sample" + String(i);
+    nvStoreBaseName = "co2Sample" + String(loop);
     // get previously stored values. If they don't exist, create them as 400 (CO2 floor)
-    co2Samples[i] = nvStorage.getLong(nvStoreBaseName.c_str(),400);
-    debugMessage(String(nvStoreBaseName) + " retrieved from nv storage: " + co2Samples[i],2);
+    co2Samples[loop] = nvStorage.getLong(nvStoreBaseName.c_str(),400);
+    debugMessage(String(nvStoreBaseName) + " retrieved from nv storage: " + co2Samples[loop],2);
   }
   return storedCounter;
 }
 
-void nvStorageWrite(int storedCounter)
+void nvStorageWrite(uint8_t storedCounter)
 // Stores current CO2 value into nv storage in a FIFO rotation
 // FIX: validate storedCounter with 0 and co2MaxStoredSamples
 {
@@ -681,8 +704,8 @@ bool networkConnect()
 
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-    for (int tries = 1; tries <= CONNECT_ATTEMPT_LIMIT; tries++)
-    // Attempts WiFi connection, and if unsuccessful, re-attempts after CONNECT_ATTEMPT_INTERVAL second delay for CONNECT_ATTEMPT_LIMIT times
+    for (uint8_t loop = 1; loop <= networkConnectAttemptLimit; loop++)
+    // Attempts WiFi connection, and if unsuccessful, re-attempts after networkConnectAttemptInterval second delay for networkConnectAttemptLimit times
     {
       if (WiFi.status() == WL_CONNECTED)
       {
@@ -692,9 +715,9 @@ bool networkConnect()
         debugMessage(String("WiFi RSSI: ") + hardwareData.rssi + " dBm",1);
         return true;
       }
-      debugMessage(String("Connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " to " + WIFI_SSID + " failed",1);
+      debugMessage(String("Connection attempt ") + loop + " of " + networkConnectAttemptLimit + " to " + WIFI_SSID + " failed",1);
       // use of delay() OK as this is initialization code
-      delay(CONNECT_ATTEMPT_INTERVAL * 1000); // convered into milliseconds
+      delay(networkConnectAttemptInterval * 1000); // convered into milliseconds
     }
   #endif
   return false;
@@ -718,7 +741,7 @@ bool networkGetTime(String timezone)
   struct tm timeinfo;
 
   // connect to NTP server with 0 TZ offset
-  configTime(0, 0, ntpServer);
+  configTime(0, 0, networkNTPAddress);
   if(!getLocalTime(&timeinfo))
   {
     debugMessage("Failed to obtain time from NTP Server",1);
