@@ -3,24 +3,27 @@
   Description:    non-secret configuration data
 */
 
-#ifndef CONFIG_H
-#define CONFIG_H
-
 // Configuration Step 1: Create and/or configure secrets.h. Use secrets_template.h as guide to create secrets.h
 
 // Configuration Step 2: Set debug parameters
 // comment out to turn off; 1 = summary, 2 = verbose
 #define DEBUG 1
 
-// simulate SCD40 sensor operations, returning random but plausible values
+// Configuration Step 3: simulate hardware inputs, returning random but plausible values
 // comment out to turn off
 // #define SENSOR_SIMULATE
-const uint16_t sensorTempMin =      1500; // will be divided by 100.0 to give floats
-const uint16_t sensorTempMax =      2500;
-const uint16_t sensorHumidityMin =  500; // will be divided by 100.0 to give floats
-const uint16_t sensorHumidityMax =  9500;
-const uint16_t sensorCO2Min =       400;
-const uint16_t sensorCO2Max =       3000;  
+
+#ifdef SENSOR_SIMULATE
+  const uint16_t sensorTempMin =      1500; // will be divided by 100.0 to give floats
+  const uint16_t sensorTempMax =      2500;
+  const uint16_t sensorHumidityMin =  500; // will be divided by 100.0 to give floats
+  const uint16_t sensorHumidityMax =  9500;
+  const uint16_t sensorCO2Min =       400;
+  const uint16_t sensorCO2Max =       3000;
+
+  const uint16_t batterySimVoltageMin = 370; // will be divided by 100.0 to give floats
+  const uint16_t batterySimVoltageMax = 410;
+#endif
 
 // Configuration Step 3: Set network data endpoints
 // #define MQTT 		    // log sensor data to M/QTT broker
@@ -85,12 +88,12 @@ const uint8_t displayRotation = 0; // rotation 0 orients as "top" near flex cabl
 //sample timing
 #ifdef DEBUG
 	// number of times SCD40 is read, last read is the sample value
-	#define READS_PER_SAMPLE	1
+  const uint8_t sensorReadsPerSample =  1;
 	// time between samples in seconds. Must be >=180 to protect 3 color EPD
-	#define SAMPLE_INTERVAL		60
+  const uint16_t sensorSampleInterval = 60;
 #else
-	#define READS_PER_SAMPLE	3
-	#define SAMPLE_INTERVAL 	180
+  const uint8_t sensorReadsPerSample =  3;
+  const uint16_t sensorSampleInterval = 180;
 #endif
 // number of samples stored to generate sparkline
 // FIX: nvStorageRead and nvStorageWrite currently don't work if >10
@@ -124,6 +127,4 @@ const float batteryVoltageTable[101] = {
 
 // Hardware
 // Sleep time in seconds if hardware error occurs
-#define HARDWARE_ERROR_INTERVAL 10
-
-#endif // #ifdef CONFIG_H
+const uint8_t hardwareRebootInterval = 10;

@@ -117,7 +117,7 @@ void setup()
   #endif
 
   debugMessage("realtime_co2 Device ID: " + String(DEVICE_ID),1);
-  debugMessage(String(SAMPLE_INTERVAL) + " second sample interval",2);
+  debugMessage(String(sensorSampleInterval) + " second sample interval",2);
 
   hardwareData.rssi = 0;  // 0 = no WiFi 
 
@@ -137,7 +137,7 @@ void setup()
     debugMessage("Battery below required threshold, rebooting",1);
     screenAlert(40, ((display.height()/2)+6), "Low battery");
     // this is a recursive boot sequence
-    powerDisable(HARDWARE_ERROR_INTERVAL);
+    powerDisable(hardwareRebootInterval);
   }
 
   // Initialize environmental sensor
@@ -146,14 +146,14 @@ void setup()
     screenAlert(40, ((display.height()/2)+6), "No SCD40");
     // This error often occurs right after a firmware flash and reset.
     // Hardware deep sleep typically resolves it, so quickly cycle the hardware
-    powerDisable(HARDWARE_ERROR_INTERVAL);
+    powerDisable(hardwareRebootInterval);
   }
 
   // Environmental sensor available, so fetch values
   if (!sensorCO2Read()) {
     debugMessage("SCD40 returned no/bad data",1);
     screenAlert(40, ((display.height()/2)+6),"SCD40 read issue");
-    powerDisable(HARDWARE_ERROR_INTERVAL);
+    powerDisable(hardwareRebootInterval);
   }
 
   // retrieve the historical CO2 sample data
@@ -213,7 +213,7 @@ void setup()
     // no internet connection, update screen with sensor data only
     screenInfo("");
   }
-  powerDisable(SAMPLE_INTERVAL);
+  powerDisable(sensorSampleInterval);
 }
 
 void loop() {}
@@ -319,47 +319,61 @@ void screenInfo(String messageText)
   debugMessage("screenInfo refresh complete",1);
 }
 
+void batterySimulate()
+{
+  // IMPROVEMENT: Simulate battery below SCD40 required level
+  #ifdef SENSOR_SIMULATE
+    hardwareData.batteryVoltage = random(batterySimVoltageMin, batterySimVoltageMax) / 100.00;
+    hardwareData.batteryPercent = batteryGetChargeLevel(hardwareData.batteryVoltage);
+  #endif
+}
+
 void batteryRead(uint8_t reads)
 // sets global battery values from i2c battery monitor or analog pin value on supported boards
-{
-  // use i2c battery monitor if available
-  if (lc.begin())
-  {
-    debugMessage(String("Version: 0x")+lc.getICversion(),2);
-    lc.setPackAPA(BATTERY_APA);
-    lc.setThermistorB(3950);
+{  
+  #ifdef SENSOR_SIMULATE
+    batterySimulate();
+    debugMessage(String("SIMULATED Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + "%",1);
+  #else
+    // use i2c battery monitor if available
+    if (lc.begin())
+    {
+      debugMessage(String("Version: 0x")+lc.getICversion(),2);
+      lc.setPackAPA(BATTERY_APA);
+      lc.setThermistorB(3950);
 
-    hardwareData.batteryPercent = lc.cellPercent();
-    hardwareData.batteryVoltage = lc.cellVoltage();
-    hardwareData.batteryTemperatureF = 32 + (1.8 * lc.getCellTemperature());
-  } 
-  else
-  {
-    // sample battery voltage via analog pin on supported boards
-    #if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
-      // modified from the Adafruit power management guide for Adafruit ESP32V2
-      float accumulatedVoltage = 0.0;
-      for (uint8_t loop = 0; loop < reads; loop++)
-      {
-        accumulatedVoltage += analogReadMilliVolts(VBATPIN);
-      }
-       // average the readings
-      hardwareData.batteryVoltage = accumulatedVoltage/reads;
-      // convert into volts  
-      hardwareData.batteryVoltage *= 2;    // we divided by 2, so multiply back
-      hardwareData.batteryVoltage /= 1000; // convert to volts!
-      hardwareData.batteryVoltage *= 2;     // we divided by 2, so multiply back
-      // ESP32 suggested algo
-      // hardwareData.batteryVoltage *= 3.3;   // Multiply by 3.3V, our reference voltage
-      // hardwareData.batteryVoltage *= 1.05;  // the 1.05 is a fudge factor original author used to align reading with multimeter
-      // hardwareData.batteryVoltage /= 4095;  // assumes default ESP32 analogReadResolution (4095)
-      hardwareData.batteryPercent = batteryGetChargeLevel(hardwareData.batteryVoltage);
-    #endif
-  }
-  if (hardwareData.batteryVoltage != 0) 
-  {
-    debugMessage(String("Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + "%",1);
-  }
+      hardwareData.batteryPercent = lc.cellPercent();
+      hardwareData.batteryVoltage = lc.cellVoltage();
+      hardwareData.batteryTemperatureF = 32 + (1.8 * lc.getCellTemperature());
+    } 
+    else
+    {
+      // sample battery voltage via analog pin on supported boards
+      #if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
+        // modified from the Adafruit power management guide for Adafruit ESP32V2
+        float accumulatedVoltage = 0.0;
+        for (uint8_t loop = 0; loop < reads; loop++)
+        {
+          accumulatedVoltage += analogReadMilliVolts(VBATPIN);
+        }
+         // average the readings
+        hardwareData.batteryVoltage = accumulatedVoltage/reads;
+        // convert into volts  
+        hardwareData.batteryVoltage *= 2;    // we divided by 2, so multiply back
+        hardwareData.batteryVoltage /= 1000; // convert to volts!
+        hardwareData.batteryVoltage *= 2;     // we divided by 2, so multiply back
+        // ESP32 suggested algo
+        // hardwareData.batteryVoltage *= 3.3;   // Multiply by 3.3V, our reference voltage
+        // hardwareData.batteryVoltage *= 1.05;  // the 1.05 is a fudge factor original author used to align reading with multimeter
+        // hardwareData.batteryVoltage /= 4095;  // assumes default ESP32 analogReadResolution (4095)
+        hardwareData.batteryPercent = batteryGetChargeLevel(hardwareData.batteryVoltage);
+      #endif
+    }
+    if (hardwareData.batteryVoltage != 0) 
+    {
+      debugMessage(String("Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + "%",1);
+    }
+  #endif
 }
 
 int batteryGetChargeLevel(float volts)
@@ -503,35 +517,35 @@ void screenHelperStatusMessage(uint16_t initialX, uint16_t initialY, String mess
 bool sensorCO2Init() {
   #ifdef SENSOR_SIMULATE
     return true;
+ #else
+    char errorMessage[256];
+
+    // properly initialize boards with two I2C ports
+    #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
+      Wire1.begin();
+      envSensor.begin(Wire1);
+    #else
+      // only one I2C port
+      Wire.begin();
+      envSensor.begin(Wire);
+    #endif
+
+    envSensor.wakeUp();
+    envSensor.setSensorAltitude(SITE_ALTITUDE);  // optimizes CO2 reading
+
+    uint16_t error = envSensor.startPeriodicMeasurement();
+    if (error) {
+      // Failed to initialize SCD40
+      errorToString(error, errorMessage, 256);
+      debugMessage(String(errorMessage) + " executing SCD40 startPeriodicMeasurement()",1);
+      return false;
+    } 
+    else
+    {
+      debugMessage("power on: SCD40",1);
+      return true;
+    }
   #endif
-
-  char errorMessage[256];
-
-  #if defined(ARDUINO_ADAFRUIT_QTPY_ESP32S2) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3_NOPSRAM) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32S3) || defined(ARDUINO_ADAFRUIT_QTPY_ESP32_PICO)
-    // these boards have two I2C ports so we have to initialize the appropriate port
-    Wire1.begin();
-    envSensor.begin(Wire1);
-  #else
-    // only one I2C port
-    Wire.begin();
-    envSensor.begin(Wire);
-  #endif
-
-  envSensor.wakeUp();
-  envSensor.setSensorAltitude(SITE_ALTITUDE);  // optimizes CO2 reading
-
-  uint16_t error = envSensor.startPeriodicMeasurement();
-  if (error) {
-    // Failed to initialize SCD40
-    errorToString(error, errorMessage, 256);
-    debugMessage(String(errorMessage) + " executing SCD40 startPeriodicMeasurement()",1);
-    return false;
-  } 
-  else
-  {
-    debugMessage("power on: SCD40",1);
-    return true;
-  }
 }
 
 void sensorCO2Simulate()
@@ -550,7 +564,7 @@ void sensorCO2Simulate()
 }
 
 bool sensorCO2Read()
-// reads SCD40 READS_PER_SAMPLE times then stores last read
+// reads SCD40 sensorReadsPerSample times then stores last read
 {
   #ifdef SENSOR_SIMULATE
     sensorCO2Simulate();
@@ -558,10 +572,11 @@ bool sensorCO2Read()
     char errorMessage[256];
 
     screenAlert(40, ((display.height()/2)+6), "CO2 check");
-    for (uint8_t loop=1; loop<=READS_PER_SAMPLE; loop++)
+    for (uint8_t loop=1; loop<=sensorReadsPerSample; loop++)
     {
       // SCD40 datasheet suggests 5 second delay between SCD40 reads
-      delay(5000);
+      // assume sensorSampleInterval will create needed delay for loop == 1 
+      if (loop > 1) delay(5000);
       uint16_t error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTemperatureF, sensorData.ambientHumidity);
       // handle SCD40 errors
       if (error) {
@@ -574,7 +589,7 @@ bool sensorCO2Read()
         debugMessage("SCD40 CO2 reading out of range",1);
         return false;
       }
-      debugMessage(String("SCD40 read ") + loop + " of " + READS_PER_SAMPLE + " : " + sensorData.ambientTemperatureF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm",2);
+      debugMessage(String("SCD40 read ") + loop + " of " + sensorReadsPerSample + " : " + sensorData.ambientTemperatureF + "F, " + sensorData.ambientHumidity + "%, " + sensorData.ambientCO2 + " ppm",2);
     }
   #endif
   //convert C to F for temp
@@ -633,14 +648,16 @@ void powerDisable(uint16_t deepSleepTime)
   networkDisconnect();
 
   // power down SCD40 by stopping potentially started measurement then power down SCD40
-  uint16_t error = envSensor.stopPeriodicMeasurement();
-  if (error) {
-    char errorMessage[256];
-    errorToString(error, errorMessage, 256);
-    debugMessage(String(errorMessage) + " executing SCD40 stopPeriodicMeasurement()",1);
-  }
-  envSensor.powerDown();
-  debugMessage("power off: SCD40",1);
+  #ifndef SENSOR_SIMULATE
+    uint16_t error = envSensor.stopPeriodicMeasurement();
+    if (error) {
+      char errorMessage[256];
+      errorToString(error, errorMessage, 256);
+      debugMessage(String(errorMessage) + " executing SCD40 stopPeriodicMeasurement()",1);
+    }
+    envSensor.powerDown();
+    debugMessage("power off: SCD40",1);
+  #endif
 
   #if defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
     // Turn off the I2C power
