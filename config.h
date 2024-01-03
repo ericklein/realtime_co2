@@ -1,16 +1,29 @@
 /*
   Project Name:   realtime_co2
-  Description:    public (non-secret) configuration data
+  Description:    non-secret configuration data
 */
-
-#ifndef CONFIG_H
-#define CONFIG_H
 
 // Configuration Step 1: Create and/or configure secrets.h. Use secrets_template.h as guide to create secrets.h
 
-// Configuration Step 2: Set debug message output
+// Configuration Step 2: Set debug parameters
 // comment out to turn off; 1 = summary, 2 = verbose
-#define DEBUG 0
+#define DEBUG 1
+
+// Configuration Step 3: simulate hardware inputs, returning random but plausible values
+// comment out to turn off
+// #define SENSOR_SIMULATE
+
+#ifdef SENSOR_SIMULATE
+  const uint16_t sensorTempMin =      1500; // will be divided by 100.0 to give floats
+  const uint16_t sensorTempMax =      2500;
+  const uint16_t sensorHumidityMin =  500; // will be divided by 100.0 to give floats
+  const uint16_t sensorHumidityMax =  9500;
+  const uint16_t sensorCO2Min =       400;
+  const uint16_t sensorCO2Max =       3000;
+
+  const uint16_t batterySimVoltageMin = 370; // will be divided by 100.0 to give floats
+  const uint16_t batterySimVoltageMax = 410;
+#endif
 
 // Configuration Step 3: Set network data endpoints
 // #define MQTT 		    // log sensor data to M/QTT broker
@@ -29,34 +42,36 @@
 // #define BATTERY_APA 0x32 // 2500mAH
 // #define BATTERY_APA 0x36 // 3000mAH
 
-// battery pin for Adafruit ESP32V2 used for reading battery voltage
-// used for reading battery voltage from analog PIN on applicable devices
-#define VBATPIN A13
-const int   batteryReads = 5;
+// Configuration variables that change rarely
 
-// Configuration Step 5: Set parameters for NTP time configuration
-#define ntpServer "pool.ntp.org"
-#define timeZoneString "PST8PDT,M3.2.0,M11.1.0" // America/Los_Angeles
+// Network
+// max connection attempts to network services
+const uint8_t networkConnectAttemptLimit = 3;
+// seconds between network service connect attempts
+const uint8_t networkConnectAttemptInterval = 10;
 
-// Specify Measurement to use with InfluxDB for sensor and device info
+// Time
+// NTP time parameters
+// const char* networkNTPAddress = "pool.ntp.org";
+#define networkNTPAddress "pool.ntp.org"
+const String networkTimeZone = "PST8PDT,M3.2.0,M11.1.0"; // America/Los_Angeles
+const String weekDays[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+
+// Data endpoints
 #ifdef INFLUX
   #define INFLUX_ENV_MEASUREMENT "weather"  // Used for environmental sensor data
   #define INFLUX_DEV_MEASUREMENT "device"   // Used for logging AQI device data (e.g. battery)
 #endif
 
 #ifdef DWEET
-	// Post data to the internet via dweet.io.  Set DWEET_DEVICE to be a
-	// unique name you want associated with this reporting device, allowing
-	// data to be easily retrieved through the web or Dweet's REST API.
-	#define DWEET_HOST "dweet.io"   // Typically dweet.io
-	#define DWEET_DEVICE "makerhour-rco2"  // Must be unique across all of dweet.io
+  // Post data to the internet via dweet.io.  Set DWEET_DEVICE to be a
+  // unique name you want associated with this reporting device, allowing
+  // data to be easily retrieved through the web or Dweet's REST API.
+  #define DWEET_HOST "dweet.io"   // Typically dweet.io
+  #define DWEET_DEVICE "makerhour-rco2"  // Must be unique across all of dweet.io
 #endif
 
-// Configuration variables that are less likely to require changes
-
-#define CONNECT_ATTEMPT_LIMIT	3 // max connection attempts to internet services
-#define CONNECT_ATTEMPT_INTERVAL 10 // seconds between internet service connect attempts
-
+// Display
 // Pin config for host board to 1.54" 200x200 EPD
 #define EPD_CS      12
 #define EPD_DC      27
@@ -64,37 +79,34 @@ const int   batteryReads = 5;
 #define EPD_RESET   15
 #define EPD_BUSY    32
 
-// base class GxEPD2_GFX can be used to pass references or pointers to the display instance as parameter, uses ~1.2k more code
-// enable GxEPD2_GFX base class
+// enable GxEPD2_GFX base class to pass references or pointers to the display instance as parameter, uses ~1.2k more code
 #define ENABLE_GxEPD2_GFX 1
+// orientation of screen relative to physical housing 
+const uint8_t displayRotation = 0; // rotation 0 orients as "top" near flex cable
 
-// Allow for adjustable screen as needed for physical packaging. 
-// rotation 0 orients as "top" near flex cable
-#define DISPLAY_ROTATION 0
-
-// SCD40 sample timing
+// CO2 
+//sample timing
 #ifdef DEBUG
 	// number of times SCD40 is read, last read is the sample value
-	#define READS_PER_SAMPLE	1
+  const uint8_t sensorReadsPerSample =  1;
 	// time between samples in seconds. Must be >=180 to protect 3 color EPD
-	#define SAMPLE_INTERVAL		60
+  const uint16_t sensorSampleInterval = 60;
 #else
-	#define READS_PER_SAMPLE	3
-	#define SAMPLE_INTERVAL 	180
+  const uint8_t sensorReadsPerSample =  3;
+  const uint16_t sensorSampleInterval = 180;
 #endif
-
-// nvStorageRead and nvStorageWrite currently don't work if >10
-const int co2MaxStoredSamples = 10;
-
-// Sleep time in seconds if hardware error occurs
-#define HARDWARE_ERROR_INTERVAL 10
-
+// number of samples stored to generate sparkline
+// FIX: nvStorageRead and nvStorageWrite currently don't work if >10
+const uint8_t co2MaxStoredSamples = 10;
 const String co2Labels[5]={"Good", "OK", "So-So", "Poor", "Bad"};
-// used in aq_network.cpp
-const String weekDays[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
+// Battery
+// analog pin used to reading battery voltage
+#define VBATPIN A13 // ESP32V2
+// number of analog pin reads sampled to average battery voltage
+const uint8_t   batteryReadsPerSample = 5;
 // battery charge level lookup table
-const float voltageTable[101] = {
+const float batteryVoltageTable[101] = {
   3.200,  3.250,  3.300,  3.350,  3.400,  3.450,
   3.500,  3.550,  3.600,  3.650,  3.700,  3.703,
   3.706,  3.710,  3.713,  3.716,  3.719,  3.723,
@@ -113,4 +125,6 @@ const float voltageTable[101] = {
   4.092,  4.100,  4.111,  4.122,  4.133,  4.144,
   4.156,  4.167,  4.178,  4.189,  4.200};
 
-#endif // #ifdef CONFIG_H
+// Hardware
+// Sleep time in seconds if hardware error occurs
+const uint8_t hardwareRebootInterval = 10;

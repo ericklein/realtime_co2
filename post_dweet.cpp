@@ -8,16 +8,16 @@
 // hardware and internet configuration parameters
 #include "config.h"
 // private credentials for network, MQTT, weather provider
-#include "secrets.h"
+// #include "secrets.h"
 
 #ifdef DWEET
   #include <HTTPClient.h> 
 
   // Shared helper function
-  extern void debugMessage(String messageText, int messageLevel);
+  extern void debugMessage(String messageText, uint8_t messageLevel);
 
   // Post a dweet to report the various sensor readings
-  void post_dweet(uint16_t co2, float temperatureF, float humidity, float battv, int rssi)
+  void post_dweet(uint16_t co2, float temperatureF, float humidity, float battv, uint8_t rssi)
   {
     WiFiClient dweet_client;
 

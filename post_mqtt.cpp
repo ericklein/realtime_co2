@@ -36,9 +36,10 @@ extern void debugMessage(String messageText, int messageLevel);
       return;
     }
 
+    // does this need to be signed?
     int8_t mqttErr;
 
-    for(int tries = 1; tries <= CONNECT_ATTEMPT_LIMIT; tries++)
+    for(uint8_t loop = 1; loop <= networkConnectAttemptLimit; loop++)
     {
       if ((mqttErr = aq_mqtt.connect()) == 0)
       {
@@ -47,8 +48,8 @@ extern void debugMessage(String messageText, int messageLevel);
       }
 
       aq_mqtt.disconnect();
-      debugMessage(String("MQTT connection attempt ") + tries + " of " + CONNECT_ATTEMPT_LIMIT + " failed with error msg: " + aq_mqtt.connectErrorString(mqttErr),1);
-      delay(CONNECT_ATTEMPT_INTERVAL*1000);
+      debugMessage(String("MQTT connection attempt ") + loop + " of " + networkConnectAttemptLimit + " failed with error msg: " + aq_mqtt.connectErrorString(mqttErr),1);
+      delay(networkConnectAttemptInterval*1000);
     }
   } 
 
@@ -89,7 +90,7 @@ extern void debugMessage(String messageText, int messageLevel);
     return(result);
   }
 
-  int mqttDeviceWiFiUpdate(int rssi)
+  int mqttDeviceWiFiUpdate(uint8_t rssi)
   {
     bool result = false;
     if (rssi!=0)
