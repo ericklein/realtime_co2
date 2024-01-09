@@ -45,15 +45,15 @@ hdweData hardwareData;
   #include "time.h"
 #endif
 
-// initialize scd40 environment sensor
-#ifndef SENSOR_SIMULATE
+#ifndef HARDWARE_SIMULATE
+  // initialize scd40 CO2 sensor
   #include <SensirionI2CScd4x.h>
   SensirionI2CScd4x envSensor;
-#endif
 
-// Battery voltage sensor
-#include <Adafruit_LC709203F.h>
-Adafruit_LC709203F lc;
+  // Battery voltage sensor
+  #include <Adafruit_LC709203F.h>
+  Adafruit_LC709203F lc;
+#endif
 
 // screen support
 #include <GxEPD2_BW.h>
@@ -322,7 +322,7 @@ void screenInfo(String messageText)
 void batterySimulate()
 {
   // IMPROVEMENT: Simulate battery below SCD40 required level
-  #ifdef SENSOR_SIMULATE
+  #ifdef HARDWARE_SIMULATE
     hardwareData.batteryVoltage = random(batterySimVoltageMin, batterySimVoltageMax) / 100.00;
     hardwareData.batteryPercent = batteryGetChargeLevel(hardwareData.batteryVoltage);
   #endif
@@ -331,7 +331,7 @@ void batterySimulate()
 void batteryRead(uint8_t reads)
 // sets global battery values from i2c battery monitor or analog pin value on supported boards
 {  
-  #ifdef SENSOR_SIMULATE
+  #ifdef HARDWARE_SIMULATE
     batterySimulate();
     debugMessage(String("SIMULATED Battery voltage: ") + hardwareData.batteryVoltage + "v, percent: " + hardwareData.batteryPercent + "%",1);
   #else
@@ -350,23 +350,15 @@ void batteryRead(uint8_t reads)
     {
       // sample battery voltage via analog pin on supported boards
       #if defined (ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
-        // modified from the Adafruit power management guide for Adafruit ESP32V2
         float accumulatedVoltage = 0.0;
         for (uint8_t loop = 0; loop < reads; loop++)
         {
-          accumulatedVoltage += analogReadMilliVolts(VBATPIN);
+          accumulatedVoltage += analogReadMilliVolts(BATTERY_VOLTAGE_PIN);
         }
-         // average the readings
-        hardwareData.batteryVoltage = accumulatedVoltage/reads;
+        hardwareData.batteryVoltage = accumulatedVoltage/reads; // we now have the average reading
         // convert into volts  
         hardwareData.batteryVoltage *= 2;    // we divided by 2, so multiply back
         hardwareData.batteryVoltage /= 1000; // convert to volts!
-        hardwareData.batteryVoltage *= 2;     // we divided by 2, so multiply back
-        // ESP32 suggested algo
-        // hardwareData.batteryVoltage *= 3.3;   // Multiply by 3.3V, our reference voltage
-        // hardwareData.batteryVoltage *= 1.05;  // the 1.05 is a fudge factor original author used to align reading with multimeter
-        // hardwareData.batteryVoltage /= 4095;  // assumes default ESP32 analogReadResolution (4095)
-        hardwareData.batteryPercent = batteryGetChargeLevel(hardwareData.batteryVoltage);
       #endif
     }
     if (hardwareData.batteryVoltage != 0) 
@@ -515,7 +507,7 @@ void screenHelperStatusMessage(uint16_t initialX, uint16_t initialY, String mess
 }
 
 bool sensorCO2Init() {
-  #ifdef SENSOR_SIMULATE
+  #ifdef HARDWARE_SIMULATE
     return true;
  #else
     char errorMessage[256];
@@ -552,7 +544,7 @@ void sensorCO2Simulate()
 // Simulate ranged data from the SCD40
 // Improvement - implement stable, rapid rise and fall 
 {
-  #ifdef SENSOR_SIMULATE
+  #ifdef HARDWARE_SIMULATE
     // Temperature
     // keep this value in C, as it is converted to F in sensorCO2Read
     sensorData.ambientTemperatureF = random(sensorTempMin,sensorTempMax) / 100.0;
@@ -566,7 +558,7 @@ void sensorCO2Simulate()
 bool sensorCO2Read()
 // reads SCD40 sensorReadsPerSample times then stores last read
 {
-  #ifdef SENSOR_SIMULATE
+  #ifdef HARDWARE_SIMULATE
     sensorCO2Simulate();
   #else
     char errorMessage[256];
@@ -648,7 +640,7 @@ void powerDisable(uint16_t deepSleepTime)
   networkDisconnect();
 
   // power down SCD40 by stopping potentially started measurement then power down SCD40
-  #ifndef SENSOR_SIMULATE
+  #ifndef HARDWARE_SIMULATE
     uint16_t error = envSensor.stopPeriodicMeasurement();
     if (error) {
       char errorMessage[256];

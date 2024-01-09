@@ -11,9 +11,9 @@
 
 // Configuration Step 3: simulate hardware inputs, returning random but plausible values
 // comment out to turn off
-// #define SENSOR_SIMULATE
+// #define HARDWARE_SIMULATE
 
-#ifdef SENSOR_SIMULATE
+#ifdef HARDWARE_SIMULATE
   const uint16_t sensorTempMin =      1500; // will be divided by 100.0 to give floats
   const uint16_t sensorTempMax =      2500;
   const uint16_t sensorHumidityMin =  500; // will be divided by 100.0 to give floats
@@ -102,7 +102,7 @@ const String co2Labels[5]={"Good", "OK", "So-So", "Poor", "Bad"};
 
 // Battery
 // analog pin used to reading battery voltage
-#define VBATPIN A13 // ESP32V2
+#define BATTERY_VOLTAGE_PIN A13 // ESP32V2
 // number of analog pin reads sampled to average battery voltage
 const uint8_t   batteryReadsPerSample = 5;
 // battery charge level lookup table
