@@ -567,8 +567,7 @@ bool sensorCO2Read()
     for (uint8_t loop=1; loop<=sensorReadsPerSample; loop++)
     {
       // SCD40 datasheet suggests 5 second delay between SCD40 reads
-      // assume sensorSampleInterval will create needed delay for loop == 1 
-      if (loop > 1) delay(5000);
+      delay(5000);
       uint16_t error = envSensor.readMeasurement(sensorData.ambientCO2, sensorData.ambientTemperatureF, sensorData.ambientHumidity);
       // handle SCD40 errors
       if (error) {
